@@ -1,0 +1,36 @@
+import type { LocaleDictionary } from "@/lib/i18n/types";
+
+export const progressMessages: LocaleDictionary = {
+  vi: {
+    title: "Tiến độ học tập",
+    subtitle: "Theo dõi hành trình học và thành tích của bạn",
+    currentStreak: "Streak hiện tại",
+    bestStreak: "Streak cao nhất",
+    daysStudied: "Số ngày học",
+    avgAccuracy: "Độ chính xác TB",
+    calendar: "Lịch học",
+    analytics: "Phân tích",
+    achievements: "Thành tích",
+    studyCalendar: "Lịch học tập",
+    weeklyBreakdown: "Thống kê tuần",
+    performanceMetrics: "Chỉ số hiệu suất",
+    unlocked: "Đã mở",
+    locked: "Chưa mở",
+  },
+  en: {
+    title: "Learning progress",
+    subtitle: "Track your learning journey and achievements",
+    currentStreak: "Current streak",
+    bestStreak: "Best streak",
+    daysStudied: "Days studied",
+    avgAccuracy: "Avg accuracy",
+    calendar: "Calendar",
+    analytics: "Analytics",
+    achievements: "Achievements",
+    studyCalendar: "Study calendar",
+    weeklyBreakdown: "Weekly breakdown",
+    performanceMetrics: "Performance metrics",
+    unlocked: "Unlocked",
+    locked: "Locked",
+  },
+};

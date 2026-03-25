@@ -1,0 +1,38 @@
+import type { LocaleDictionary } from "@/lib/i18n/types";
+
+export const dashboardMessages: LocaleDictionary = {
+  vi: {
+    title: "Dashboard",
+    subtitle: "Tổng quan tiến độ học tập hôm nay",
+    todayCards: "Thẻ hôm nay",
+    streak: "Streak",
+    totalCards: "Tổng thẻ",
+    accuracy: "Độ chính xác",
+    studyTime: "Thời gian học",
+    yourDecks: "Bộ từ của bạn",
+    activeDecks: "bộ từ đang hoạt động",
+    newDeck: "Tạo bộ từ",
+    mastered: "Đã thuộc",
+    reviewedToday: "Ôn hôm nay",
+    cards: "thẻ",
+    recentActivity: "Hoạt động gần đây",
+    play: "Học ngay",
+  },
+  en: {
+    title: "Dashboard",
+    subtitle: "Overview of your daily study progress",
+    todayCards: "Today's cards",
+    streak: "Streak",
+    totalCards: "Total cards",
+    accuracy: "Accuracy",
+    studyTime: "Study time",
+    yourDecks: "Your decks",
+    activeDecks: "active decks",
+    newDeck: "New deck",
+    mastered: "Mastered",
+    reviewedToday: "Reviewed today",
+    cards: "cards",
+    recentActivity: "Recent activity",
+    play: "Study now",
+  },
+};

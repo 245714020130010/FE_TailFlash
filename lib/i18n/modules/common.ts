@@ -1,0 +1,36 @@
+import type { LocaleDictionary } from "@/lib/i18n/types";
+
+export const commonMessages: LocaleDictionary = {
+  vi: {
+    account: "Tài khoản",
+    startLearning: "Bắt đầu học",
+    demo: "Xem demo",
+    dashboard: "Dashboard",
+    games: "Mini Games",
+    decks: "Decks",
+    progress: "Tiến độ",
+    profile: "Hồ sơ",
+    onboarding: "Lộ trình",
+    appName: "TailFlash",
+    save: "Lưu",
+    cancel: "Hủy",
+    back: "Quay lại",
+    or: "Hoặc",
+  },
+  en: {
+    account: "Account",
+    startLearning: "Start learning",
+    demo: "See demo",
+    dashboard: "Dashboard",
+    games: "Mini Games",
+    decks: "Decks",
+    progress: "Progress",
+    profile: "Profile",
+    onboarding: "Roadmap",
+    appName: "TailFlash",
+    save: "Save",
+    cancel: "Cancel",
+    back: "Back",
+    or: "Or",
+  },
+};
