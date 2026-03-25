@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,11 +13,19 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
-import { readDemoState, updateDemoState } from "@/lib/demo-store";
+import {
+  readDemoState,
+  resetDemoState,
+  saveStudyNote,
+  signOutAllDemoSessions,
+  updateDemoState,
+  updateNotificationSettings,
+} from "@/lib/demo-store";
 import { toast } from "sonner";
 
 export default function ProfileSettings() {
   const { locale, t } = useLanguage();
+  const router = useRouter();
   const initialDemoState = readDemoState();
   const [name, setName] = useState(initialDemoState.profile.fullName);
   const [email, setEmail] = useState(initialDemoState.profile.email);
@@ -29,6 +38,16 @@ export default function ProfileSettings() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [notifications, setNotifications] = useState(
+    initialDemoState.notifications,
+  );
+  const [studyNotes, setStudyNotes] = useState(initialDemoState.studyNotes);
+  const [selectedNoteDeckId, setSelectedNoteDeckId] = useState(
+    initialDemoState.selectedDeckId,
+  );
+  const [noteDraft, setNoteDraft] = useState(
+    initialDemoState.studyNotes[initialDemoState.selectedDeckId] ?? "",
+  );
 
   const canUpdatePassword = useMemo(() => {
     return (
@@ -77,6 +96,67 @@ export default function ProfileSettings() {
     );
   };
 
+  const handleSaveNotifications = () => {
+    const nextState = updateNotificationSettings(notifications);
+    setNotifications(nextState.notifications);
+    toast.success(t("profile.notificationsSaved"));
+  };
+
+  const handleSignOutAll = () => {
+    signOutAllDemoSessions();
+    toast.info(
+      locale === "vi"
+        ? "Da dang xuat tat ca phien demo"
+        : "All demo sessions have been signed out",
+    );
+  };
+
+  const handleDeckNoteChange = (deckId: string) => {
+    setSelectedNoteDeckId(deckId);
+    setNoteDraft(studyNotes[deckId] ?? "");
+  };
+
+  const handleSaveDeckNote = () => {
+    if (!selectedNoteDeckId) {
+      toast.error(t("profile.noDecks"));
+      return;
+    }
+
+    const nextState = saveStudyNote({
+      deckId: selectedNoteDeckId,
+      note: noteDraft.trim(),
+    });
+    setStudyNotes(nextState.studyNotes);
+    toast.success(t("profile.noteSaved"));
+  };
+
+  const handleDeleteAccount = () => {
+    const confirmStepOne = window.confirm(t("profile.deleteConfirmStep1"));
+
+    if (!confirmStepOne) {
+      toast.info(t("profile.deleteAbort"));
+      return;
+    }
+
+    const confirmation = window.prompt(t("profile.deleteConfirmStep2"));
+    if ((confirmation ?? "").trim().toUpperCase() !== "DELETE") {
+      toast.error(t("profile.deleteAbort"));
+      return;
+    }
+
+    const freshState = resetDemoState();
+    setName(freshState.profile.fullName);
+    setEmail(freshState.profile.email);
+    setPhone(freshState.profile.phone);
+    setBio(locale === "vi" ? freshState.profile.bioVi : freshState.profile.bioEn);
+    setNotifications(freshState.notifications);
+    setStudyNotes(freshState.studyNotes);
+    setSelectedNoteDeckId(freshState.selectedDeckId);
+    setNoteDraft(freshState.studyNotes[freshState.selectedDeckId] ?? "");
+    toast.success(t("profile.deleteSuccess"));
+    router.push("/signup");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/50">
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
@@ -93,12 +173,13 @@ export default function ProfileSettings() {
 
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <Tabs defaultValue="profile">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="profile">{t("profile.profile")}</TabsTrigger>
             <TabsTrigger value="password">{t("profile.password")}</TabsTrigger>
             <TabsTrigger value="notifications">
               {t("profile.notifications")}
             </TabsTrigger>
+            <TabsTrigger value="notes">{t("profile.notes")}</TabsTrigger>
             <TabsTrigger value="appearance">
               {t("profile.appearance")}
             </TabsTrigger>
@@ -235,35 +316,99 @@ export default function ProfileSettings() {
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 {[
-                  locale === "vi" ? "Nhắc học hằng ngày" : "Daily reminder",
-                  locale === "vi" ? "Báo cáo hằng tuần" : "Weekly report",
-                  locale === "vi" ? "Cảnh báo mất streak" : "Streak warning",
-                ].map((label) => (
+                  {
+                    key: "dailyReminder" as const,
+                    label: t("profile.dailyReminder"),
+                  },
+                  {
+                    key: "weeklyReport" as const,
+                    label: t("profile.weeklyReport"),
+                  },
+                  {
+                    key: "streakWarning" as const,
+                    label: t("profile.streakWarning"),
+                  },
+                ].map((item) => (
                   <label
-                    key={label}
+                    key={item.key}
                     className="flex items-center justify-between rounded-md bg-muted p-3"
                   >
-                    {label}
+                    {item.label}
                     <input
                       type="checkbox"
-                      aria-label={label}
-                      defaultChecked
+                      aria-label={item.label}
+                      checked={notifications[item.key]}
+                      onChange={(event) =>
+                        setNotifications((current) => ({
+                          ...current,
+                          [item.key]: event.target.checked,
+                        }))
+                      }
                       className="h-4 w-4 accent-primary"
                     />
                   </label>
                 ))}
                 <Button
                   type="button"
-                  onClick={() =>
-                    toast.success(
-                      locale === "vi"
-                        ? "Da luu tuy chon thong bao"
-                        : "Notification preferences saved",
-                    )
-                  }
+                  onClick={handleSaveNotifications}
                 >
                   {t("profile.saveChanges")}
                 </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="notes">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("profile.notesTitle")}</CardTitle>
+                <CardDescription>{t("profile.notesSubtitle")}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="deck-notes-select" className="text-sm">
+                    {t("profile.selectDeck")}
+                  </label>
+                  <select
+                    id="deck-notes-select"
+                    value={selectedNoteDeckId}
+                    onChange={(event) => handleDeckNoteChange(event.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                    disabled={initialDemoState.decks.length === 0}
+                  >
+                    {initialDemoState.decks.map((deck) => (
+                      <option key={deck.id} value={deck.id}>
+                        {deck.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="deck-note-content" className="text-sm">
+                    {t("profile.notes")}
+                  </label>
+                  <textarea
+                    id="deck-note-content"
+                    value={noteDraft}
+                    onChange={(event) => setNoteDraft(event.target.value)}
+                    placeholder={t("profile.notePlaceholder")}
+                    className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2"
+                    disabled={initialDemoState.decks.length === 0}
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={handleSaveDeckNote}
+                  disabled={initialDemoState.decks.length === 0}
+                >
+                  {t("profile.saveChanges")}
+                </Button>
+
+                {initialDemoState.decks.length === 0 && (
+                  <p className="text-sm text-muted-foreground">{t("profile.noDecks")}</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -300,13 +445,7 @@ export default function ProfileSettings() {
               variant="outline"
               className="w-full justify-start text-destructive"
               type="button"
-              onClick={() =>
-                toast.info(
-                  locale === "vi"
-                    ? "Da dang xuat tat ca phien demo"
-                    : "All demo sessions have been signed out",
-                )
-              }
+              onClick={handleSignOutAll}
             >
               {t("profile.logoutAll")}
             </Button>
@@ -314,13 +453,7 @@ export default function ProfileSettings() {
               variant="outline"
               className="w-full justify-start text-destructive"
               type="button"
-              onClick={() =>
-                toast.warning(
-                  locale === "vi"
-                    ? "Che do demo: tai khoan khong bi xoa that"
-                    : "Demo mode: account is not actually deleted",
-                )
-              }
+              onClick={handleDeleteAccount}
             >
               {t("profile.deleteAccount")}
             </Button>

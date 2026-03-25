@@ -15,7 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
-import { updateDemoState } from "@/lib/demo-store";
+import { signInWithOAuthDemo, updateDemoState } from "@/lib/demo-store";
 import { toast } from "sonner";
 
 export default function LoginPage() {
@@ -35,6 +35,7 @@ export default function LoginPage() {
       session: {
         isLoggedIn: true,
         email,
+        provider: "password",
       },
       profile: {
         ...current.profile,
@@ -43,6 +44,16 @@ export default function LoginPage() {
     }));
     setIsLoading(false);
     toast.success("Dang nhap demo thanh cong");
+    router.push("/dashboard");
+  };
+
+  const handleOAuthLogin = (provider: "google" | "facebook") => {
+    signInWithOAuthDemo({ provider });
+    toast.success(
+      provider === "google"
+        ? t("auth.loginGoogleSuccess")
+        : t("auth.loginFacebookSuccess"),
+    );
     router.push("/dashboard");
   };
 
@@ -147,7 +158,7 @@ export default function LoginPage() {
               variant="outline"
               className="w-full"
               type="button"
-              onClick={() => toast.info("Demo chua ket noi OAuth")}
+              onClick={() => handleOAuthLogin("google")}
             >
               Google
             </Button>
@@ -155,7 +166,7 @@ export default function LoginPage() {
               variant="outline"
               className="w-full"
               type="button"
-              onClick={() => toast.info("Demo chua ket noi OAuth")}
+              onClick={() => handleOAuthLogin("facebook")}
             >
               Facebook
             </Button>

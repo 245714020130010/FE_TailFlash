@@ -6,10 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
+import { readDemoState } from "@/lib/demo-store";
 
 export default function StreakCalendar() {
   const { locale, t } = useLanguage();
   const [monthOffset, setMonthOffset] = useState(0);
+  const [demoState] = useState(() => readDemoState());
 
   const monthLabel = useMemo(() => {
     const date = new Date();
@@ -20,29 +22,115 @@ export default function StreakCalendar() {
     });
   }, [locale, monthOffset]);
 
-  const stats = [
-    { key: "currentStreak", value: "15" },
-    { key: "bestStreak", value: "28" },
-    { key: "daysStudied", value: "22" },
-    { key: "avgAccuracy", value: "87%" },
-  ];
+  const monthDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(1);
+    date.setMonth(date.getMonth() + monthOffset);
+    return date;
+  }, [monthOffset]);
+
+  const monthDays = useMemo(() => {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    return new Date(year, month + 1, 0).getDate();
+  }, [monthDate]);
+
+  const monthFirstWeekday = useMemo(() => {
+    return monthDate.getDay();
+  }, [monthDate]);
+
+  const studiedDates = useMemo(() => {
+    return new Set(demoState.studyHistory.map((item) => item.date));
+  }, [demoState.studyHistory]);
+
+  const activeCalendarDays = useMemo(() => {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+
+    return new Set(
+      demoState.studyHistory
+        .filter((item) => {
+          const itemDate = new Date(item.date);
+          return itemDate.getFullYear() === year && itemDate.getMonth() === month;
+        })
+        .map((item) => new Date(item.date).getDate()),
+    );
+  }, [demoState.studyHistory, monthDate]);
+
+  const stats = useMemo(() => {
+    const daysStudied = studiedDates.size;
+
+    return [
+      { key: "currentStreak", value: String(demoState.studyStats.streakDays) },
+      {
+        key: "bestStreak",
+        value: String(Math.max(demoState.studyStats.streakDays, Math.min(30, daysStudied))),
+      },
+      { key: "daysStudied", value: String(daysStudied) },
+      { key: "avgAccuracy", value: `${demoState.studyStats.accuracy}%` },
+    ];
+  }, [demoState.studyStats.accuracy, demoState.studyStats.streakDays, studiedDates.size]);
+
+  const analytics = useMemo(() => {
+    const today = new Date();
+
+    return Array.from({ length: 7 }).map((_, offset) => {
+      const date = new Date(today);
+      const daysAgo = 6 - offset;
+      date.setDate(today.getDate() - daysAgo);
+      const key = date.toISOString().slice(0, 10);
+      const history = demoState.studyHistory.find((item) => item.date === key);
+      return history?.cards ?? 0;
+    });
+  }, [demoState.studyHistory]);
 
   const weekdayLabels =
     locale === "vi"
       ? ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
       : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const achievements =
-    locale === "vi"
-      ? [
-          { title: "Streak 7 ngày", unlocked: true },
-          { title: "Streak 14 ngày", unlocked: true },
-          { title: "Huyền thoại 30 ngày", unlocked: false },
-        ]
-      : [
-          { title: "7-day streak", unlocked: true },
-          { title: "14-day streak", unlocked: true },
-          { title: "30-day legend", unlocked: false },
-        ];
+
+  const achievements = useMemo(
+    () =>
+      locale === "vi"
+        ? [
+            { title: "Streak 7 ngay", unlocked: demoState.studyStats.streakDays >= 7 },
+            { title: "Streak 14 ngay", unlocked: demoState.studyStats.streakDays >= 14 },
+            {
+              title: "Huyen thoai 30 ngay",
+              unlocked: demoState.studyStats.streakDays >= 30,
+            },
+          ]
+        : [
+            { title: "7-day streak", unlocked: demoState.studyStats.streakDays >= 7 },
+            { title: "14-day streak", unlocked: demoState.studyStats.streakDays >= 14 },
+            { title: "30-day legend", unlocked: demoState.studyStats.streakDays >= 30 },
+          ],
+    [demoState.studyStats.streakDays, locale],
+  );
+
+  const getWeeklyBarWidthClass = (value: number) => {
+    if (value >= 25) {
+      return "w-full";
+    }
+
+    if (value >= 20) {
+      return "w-4/5";
+    }
+
+    if (value >= 15) {
+      return "w-3/5";
+    }
+
+    if (value >= 10) {
+      return "w-2/5";
+    }
+
+    if (value >= 5) {
+      return "w-1/5";
+    }
+
+    return "w-0";
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/50">
@@ -116,14 +204,18 @@ export default function StreakCalendar() {
                   ))}
                 </div>
                 <div className="grid grid-cols-7 gap-2">
-                  {Array.from({ length: 35 }).map((_, idx) => {
-                    const active = idx % 3 !== 0;
+                  {Array.from({ length: monthFirstWeekday }).map((_, idx) => (
+                    <div key={`empty-${idx}`} className="aspect-square rounded-md bg-transparent" />
+                  ))}
+                  {Array.from({ length: monthDays }).map((_, idx) => {
+                    const day = idx + 1;
+                    const active = activeCalendarDays.has(day);
                     return (
                       <div
-                        key={idx}
+                        key={day}
                         className={`aspect-square rounded-md text-center text-xs leading-9 ${active ? "bg-primary/20" : "bg-muted"}`}
                       >
-                        {idx + 1 <= 31 ? idx + 1 : ""}
+                        {day}
                       </div>
                     );
                   })}
@@ -138,7 +230,7 @@ export default function StreakCalendar() {
                 <CardTitle>{t("progress.weeklyBreakdown")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {[15, 20, 12, 26, 29, 18, 10].map((value, idx) => (
+                {analytics.map((value, idx) => (
                   <div key={idx}>
                     <div className="mb-1 flex justify-between text-xs">
                       <span>{weekdayLabels[idx]}</span>
@@ -146,19 +238,7 @@ export default function StreakCalendar() {
                     </div>
                     <div className="h-2 rounded bg-muted">
                       <div
-                        className={`h-2 rounded bg-primary ${
-                          value >= 28
-                            ? "w-[96%]"
-                            : value >= 24
-                              ? "w-[85%]"
-                              : value >= 20
-                                ? "w-[70%]"
-                                : value >= 16
-                                  ? "w-[55%]"
-                                  : value >= 12
-                                    ? "w-[40%]"
-                                    : "w-[30%]"
-                        }`}
+                        className={`h-2 rounded bg-primary ${getWeeklyBarWidthClass(value)}`}
                       />
                     </div>
                   </div>

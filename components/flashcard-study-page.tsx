@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
-import { readDemoState, recordStudyResult } from "@/lib/demo-store";
+import { readDemoState, recordStudyResult, saveStudyNote } from "@/lib/demo-store";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Home,
 } from "lucide-react";
+import { useLanguage } from "@/components/language-provider";
 
 interface Flashcard {
   id: number;
@@ -75,11 +76,17 @@ const SAMPLE_FLASHCARDS: Flashcard[] = [
 ];
 
 export default function FlashcardStudyPage() {
-  const [selectedDeckName] = useState(() => {
+  const { t } = useLanguage();
+  const [selectedDeck] = useState(() => {
     const state = readDemoState();
-    const selectedDeck = state.decks.find((deck) => deck.id === state.selectedDeckId);
-    return selectedDeck?.name ?? "TOEIC Core";
+    const currentDeck = state.decks.find((deck) => deck.id === state.selectedDeckId);
+    return {
+      id: currentDeck?.id ?? state.selectedDeckId,
+      name: currentDeck?.name ?? "TOEIC Core",
+      note: state.studyNotes[state.selectedDeckId] ?? "",
+    };
   });
+  const [deckNote, setDeckNote] = useState(selectedDeck.note);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const cards = useMemo(() => SAMPLE_FLASHCARDS, []);
@@ -113,13 +120,28 @@ export default function FlashcardStudyPage() {
         recordStudyResult({
           correctCount: correct ? correctCount + 1 : correctCount,
           totalCards: cards.length,
-          deckId: state.selectedDeckId,
+          deckId: state.selectedDeckId || selectedDeck.id,
         });
         toast.success("Da luu ket qua phien hoc demo");
         setStudySession(false);
       }
     }, 1000);
-  }, [cards.length, correctCount, currentIndex]);
+  }, [cards.length, correctCount, currentIndex, selectedDeck.id]);
+
+  const handleSaveNote = () => {
+    const value = window.prompt(t("study.notePrompt"), deckNote);
+    if (value === null) {
+      return;
+    }
+
+    const trimmed = value.trim();
+    saveStudyNote({
+      deckId: selectedDeck.id,
+      note: trimmed,
+    });
+    setDeckNote(trimmed);
+    toast.success(trimmed ? t("study.noteSaved") : t("study.noteCleared"));
+  };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -163,7 +185,7 @@ export default function FlashcardStudyPage() {
               </Link>
               <div>
                 <h1 className="font-semibold text-foreground">
-                  {selectedDeckName}
+                  {selectedDeck.name}
                 </h1>
               </div>
             </div>
@@ -246,7 +268,7 @@ export default function FlashcardStudyPage() {
               </Link>
               <div>
                 <h1 className="font-semibold text-foreground">
-                  {selectedDeckName}
+                  {selectedDeck.name}
                 </h1>
                 <p className="text-xs text-muted-foreground">
                   New + Review · phím 1-4 để chọn mức nhớ
@@ -348,7 +370,7 @@ export default function FlashcardStudyPage() {
                 size="lg"
                 className="flex-1 border-border hover:bg-muted"
                 type="button"
-                onClick={() => toast.info("Ghi chu demo se co o ban backend")}
+                onClick={handleSaveNote}
               >
                 <MessageCircle className="w-4 h-4 mr-2" />
                 Ghi chú
@@ -367,6 +389,12 @@ export default function FlashcardStudyPage() {
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Lặp lại
               </Button>
+            </div>
+          )}
+
+          {deckNote && (
+            <div className="mt-4 rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{t("study.noteLabel")}:</span> {deckNote}
             </div>
           )}
 

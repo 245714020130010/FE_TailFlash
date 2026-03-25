@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
-import { updateDemoState } from "@/lib/demo-store";
+import { signInWithOAuthDemo, updateDemoState } from "@/lib/demo-store";
 import { toast } from "sonner";
 
 export default function SignupPage() {
@@ -57,10 +57,21 @@ export default function SignupPage() {
       session: {
         isLoggedIn: true,
         email,
+        provider: "password",
       },
     }));
     setIsLoading(false);
     toast.success("Tao tai khoan demo thanh cong");
+    router.push("/onboarding");
+  };
+
+  const handleOAuthSignup = (provider: "google" | "facebook") => {
+    signInWithOAuthDemo({ provider, role });
+    toast.success(
+      provider === "google"
+        ? t("auth.signupGoogleSuccess")
+        : t("auth.signupFacebookSuccess"),
+    );
     router.push("/onboarding");
   };
 
@@ -230,7 +241,7 @@ export default function SignupPage() {
               variant="outline"
               className="w-full"
               type="button"
-              onClick={() => toast.info("Demo chua ket noi OAuth")}
+              onClick={() => handleOAuthSignup("google")}
             >
               Google
             </Button>
@@ -238,7 +249,7 @@ export default function SignupPage() {
               variant="outline"
               className="w-full"
               type="button"
-              onClick={() => toast.info("Demo chua ket noi OAuth")}
+              onClick={() => handleOAuthSignup("facebook")}
             >
               Facebook
             </Button>

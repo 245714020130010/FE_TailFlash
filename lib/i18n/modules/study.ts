@@ -14,6 +14,10 @@ export const studyMessages: LocaleDictionary = {
     quickLinks: "Đi nhanh đến các trang chính",
     dueWords: "từ đến hạn",
     reviewNow: "Ôn ngay",
+    notePrompt: "Ghi chú cho bộ thẻ (demo):",
+    noteSaved: "Đã lưu ghi chú demo",
+    noteCleared: "Đã xóa ghi chú demo",
+    noteLabel: "Ghi chú",
   },
   en: {
     title: "Ready for today's study session",
@@ -28,5 +32,9 @@ export const studyMessages: LocaleDictionary = {
     quickLinks: "Quick links to core pages",
     dueWords: "due words",
     reviewNow: "Review now",
+    notePrompt: "Note for this deck (demo):",
+    noteSaved: "Demo note saved",
+    noteCleared: "Demo note removed",
+    noteLabel: "Note",
   },
 };

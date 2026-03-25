@@ -40,6 +40,20 @@ export interface DemoStudyStats {
 export interface DemoSession {
   isLoggedIn: boolean;
   email: string;
+  provider: "password" | "google" | "facebook";
+}
+
+export interface DemoNotificationSettings {
+  dailyReminder: boolean;
+  weeklyReport: boolean;
+  streakWarning: boolean;
+}
+
+export interface DemoStudyHistoryItem {
+  date: string;
+  cards: number;
+  correct: number;
+  minutes: number;
 }
 
 export interface DemoState {
@@ -49,6 +63,9 @@ export interface DemoState {
   gameStats: DemoGameStats;
   studyStats: DemoStudyStats;
   session: DemoSession;
+  notifications: DemoNotificationSettings;
+  studyNotes: Record<string, string>;
+  studyHistory: DemoStudyHistoryItem[];
 }
 
 const STORAGE_KEY = "tailflash-demo-state";
@@ -122,7 +139,15 @@ export function createDefaultDemoState(): DemoState {
     session: {
       isLoggedIn: false,
       email: "",
+      provider: "password",
     },
+    notifications: {
+      dailyReminder: true,
+      weeklyReport: true,
+      streakWarning: true,
+    },
+    studyNotes: {},
+    studyHistory: [],
   };
 }
 
@@ -147,6 +172,7 @@ function safeParse(raw: string | null): DemoState | null {
       session: {
         isLoggedIn: Boolean(parsed.session?.isLoggedIn),
         email: parsed.session?.email ?? "",
+        provider: parsed.session?.provider ?? "password",
       },
       gameStats: {
         ...createDefaultDemoState().gameStats,
@@ -162,6 +188,12 @@ function safeParse(raw: string | null): DemoState | null {
           : createDefaultDemoState().decks,
       selectedDeckId:
         parsed.selectedDeckId ?? createDefaultDemoState().selectedDeckId,
+      notifications: {
+        ...createDefaultDemoState().notifications,
+        ...(parsed.notifications ?? {}),
+      },
+      studyNotes: parsed.studyNotes ?? {},
+      studyHistory: parsed.studyHistory ?? [],
     };
   } catch {
     return null;
@@ -199,12 +231,78 @@ export function updateDemoState(
   return writeDemoState(next);
 }
 
+export function signInWithOAuthDemo(input: {
+  provider: "google" | "facebook";
+  role?: DemoRole;
+}): DemoState {
+  const providerName = input.provider === "google" ? "Google" : "Facebook";
+  const email =
+    input.provider === "google"
+      ? "google.demo@tailflash.local"
+      : "facebook.demo@tailflash.local";
+
+  return updateDemoState((current) => ({
+    ...current,
+    session: {
+      isLoggedIn: true,
+      email,
+      provider: input.provider,
+    },
+    profile: {
+      ...current.profile,
+      fullName: `${providerName} Demo User`,
+      email,
+      role: input.role ?? current.profile.role,
+    },
+  }));
+}
+
+export function saveStudyNote(input: { deckId: string; note: string }): DemoState {
+  return updateDemoState((current) => ({
+    ...current,
+    studyNotes: {
+      ...current.studyNotes,
+      [input.deckId]: input.note,
+    },
+  }));
+}
+
+export function updateNotificationSettings(
+  settings: Partial<DemoNotificationSettings>,
+): DemoState {
+  return updateDemoState((current) => ({
+    ...current,
+    notifications: {
+      ...current.notifications,
+      ...settings,
+    },
+  }));
+}
+
+export function signOutAllDemoSessions(): DemoState {
+  return updateDemoState((current) => ({
+    ...current,
+    session: {
+      isLoggedIn: false,
+      email: "",
+      provider: "password",
+    },
+  }));
+}
+
+export function resetDemoState(): DemoState {
+  const fresh = createDefaultDemoState();
+  return writeDemoState(fresh);
+}
+
 export function recordStudyResult(input: {
   correctCount: number;
   totalCards: number;
   deckId: string;
 }): DemoState {
   return updateDemoState((current) => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const estimatedMinutes = Math.max(5, Math.round(input.totalCards * 1.5));
     const decks = current.decks.map((deck) => {
       if (deck.id !== input.deckId) {
         return deck;
@@ -223,18 +321,44 @@ export function recordStudyResult(input: {
 
     const totalCards = decks.reduce((sum, deck) => sum + deck.cards, 0);
     const todayCards = decks.reduce((sum, deck) => sum + deck.reviewedToday, 0);
-    const totalReviewed = Math.max(1, current.studyStats.todayCards + input.totalCards);
+    const totalReviewed = Math.max(
+      1,
+      current.studyStats.todayCards + input.totalCards,
+    );
     const accuracy = Math.round((input.correctCount / Math.max(1, input.totalCards)) * 100);
+    const existingTodayIndex = current.studyHistory.findIndex(
+      (entry) => entry.date === todayKey,
+    );
+    const nextStudyHistory = [...current.studyHistory];
+
+    if (existingTodayIndex >= 0) {
+      const entry = nextStudyHistory[existingTodayIndex];
+      nextStudyHistory[existingTodayIndex] = {
+        ...entry,
+        cards: entry.cards + input.totalCards,
+        correct: entry.correct + input.correctCount,
+        minutes: entry.minutes + estimatedMinutes,
+      };
+    } else {
+      nextStudyHistory.push({
+        date: todayKey,
+        cards: input.totalCards,
+        correct: input.correctCount,
+        minutes: estimatedMinutes,
+      });
+    }
 
     return {
       ...current,
       decks,
+      studyHistory: nextStudyHistory,
       studyStats: {
         ...current.studyStats,
         totalCards,
         todayCards,
         streakDays: current.studyStats.streakDays + 1,
-        totalStudyMinutes: current.studyStats.totalStudyMinutes + Math.max(5, input.totalCards * 1.5),
+        totalStudyMinutes:
+          current.studyStats.totalStudyMinutes + estimatedMinutes,
         accuracy: Math.round((current.studyStats.accuracy + accuracy) / 2),
       },
       selectedDeckId: input.deckId,
