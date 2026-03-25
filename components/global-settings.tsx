@@ -11,8 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/components/language-provider";
+import { useTheme } from "@/components/theme-provider";
 import { Globe, Languages, Moon, Settings2, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
 
 export default function GlobalSettings() {
   const { theme, setTheme } = useTheme();

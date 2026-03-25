@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
+import { readDemoState, recordGameResult } from "@/lib/demo-store";
+import { toast } from "sonner";
 
 type GameTab = "selection" | "matching" | "multiple" | "typing" | "builder";
 
@@ -13,6 +15,12 @@ export default function MiniGames() {
   const [activeTab, setActiveTab] = useState<GameTab>("selection");
   const [typedAnswer, setTypedAnswer] = useState("");
   const [builtWord, setBuiltWord] = useState("");
+  const [matchingAnswer, setMatchingAnswer] = useState("");
+  const [multipleAnswer, setMultipleAnswer] = useState("");
+  const [multipleSubmitted, setMultipleSubmitted] = useState(false);
+  const [typingSubmitted, setTypingSubmitted] = useState(false);
+  const [builderSubmitted, setBuilderSubmitted] = useState(false);
+  const [gameStats, setGameStats] = useState(() => readDemoState().gameStats);
   const { locale, t } = useLanguage();
 
   const games = useMemo(
@@ -51,6 +59,25 @@ export default function MiniGames() {
       : { vi: "Ability to adjust quickly", en: "Adaptable" };
   const letters = "ADAPTABLE".split("");
 
+  const resetMiniGameState = () => {
+    setMatchingAnswer("");
+    setMultipleAnswer("");
+    setMultipleSubmitted(false);
+    setTypedAnswer("");
+    setTypingSubmitted(false);
+    setBuiltWord("");
+    setBuilderSubmitted(false);
+  };
+
+  const saveGameResult = (scorePercent: number) => {
+    const next = recordGameResult({
+      scorePercent,
+      points: Math.max(10, Math.round((scorePercent / 100) * 45)),
+      perfect: scorePercent === 100,
+    });
+    setGameStats(next.gameStats);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/50">
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
@@ -73,7 +100,10 @@ export default function MiniGames() {
                 <Card
                   key={game.id}
                   className="cursor-pointer transition hover:shadow-md"
-                  onClick={() => setActiveTab(game.id)}
+                  onClick={() => {
+                    resetMiniGameState();
+                    setActiveTab(game.id);
+                  }}
                 >
                   <CardContent className="pt-6">
                     <div className="mb-3 flex items-center justify-between">
@@ -97,25 +127,25 @@ export default function MiniGames() {
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <div className="rounded-md bg-muted p-3 text-center">
-                  <p className="text-2xl font-bold">24</p>
+                  <p className="text-2xl font-bold">{gameStats.gamesPlayed}</p>
                   <p className="text-xs text-muted-foreground">
                     {t("games.gamesPlayed")}
                   </p>
                 </div>
                 <div className="rounded-md bg-muted p-3 text-center">
-                  <p className="text-2xl font-bold">92%</p>
+                  <p className="text-2xl font-bold">{gameStats.averageScore}%</p>
                   <p className="text-xs text-muted-foreground">
                     {t("games.averageScore")}
                   </p>
                 </div>
                 <div className="rounded-md bg-muted p-3 text-center">
-                  <p className="text-2xl font-bold">18</p>
+                  <p className="text-2xl font-bold">{gameStats.perfectScore}</p>
                   <p className="text-xs text-muted-foreground">
                     {t("games.perfectScore")}
                   </p>
                 </div>
                 <div className="rounded-md bg-muted p-3 text-center">
-                  <p className="text-2xl font-bold">285</p>
+                  <p className="text-2xl font-bold">{gameStats.pointsEarned}</p>
                   <p className="text-xs text-muted-foreground">
                     {t("games.pointsEarned")}
                   </p>
@@ -137,6 +167,46 @@ export default function MiniGames() {
                   ? "Nối từ với nghĩa đúng để hoàn thành bài."
                   : "Match words to their correct meanings."}
               </p>
+              <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                {[
+                  "Can adjust quickly",
+                  "Always confusing",
+                  "Impossible to change",
+                  "Very uncomfortable",
+                ].map((option) => (
+                  <Button
+                    key={option}
+                    variant={matchingAnswer === option ? "default" : "outline"}
+                    type="button"
+                    onClick={() => setMatchingAnswer(option)}
+                    className="justify-start"
+                  >
+                    {option}
+                  </Button>
+                ))}
+              </div>
+              <div className="mb-4 flex gap-2">
+                <Button
+                  type="button"
+                  disabled={!matchingAnswer}
+                  onClick={() => {
+                    const score = matchingAnswer === "Can adjust quickly" ? 100 : 0;
+                    saveGameResult(score);
+                    toast.success(
+                      score === 100
+                        ? locale === "vi"
+                          ? "Chinh xac!"
+                          : "Correct!"
+                        : locale === "vi"
+                          ? "Chua dung, thu lai nhe"
+                          : "Not quite, try again",
+                    );
+                    setActiveTab("selection");
+                  }}
+                >
+                  {t("games.submitAnswer")}
+                </Button>
+              </div>
               <Button
                 onClick={() => setActiveTab("selection")}
                 variant="outline"
@@ -161,10 +231,23 @@ export default function MiniGames() {
                     key={option}
                     variant="outline"
                     className="w-full justify-start"
+                    type="button"
+                    onClick={() => setMultipleAnswer(option)}
                   >
                     {option}
                   </Button>
                 ),
+              )}
+              {multipleSubmitted && (
+                <p className="text-sm text-muted-foreground">
+                  {multipleAnswer === word.en
+                    ? locale === "vi"
+                      ? "Ban tra loi dung"
+                      : "You got it right"
+                    : locale === "vi"
+                      ? "Dap an dung la Adaptable"
+                      : "The correct answer is Adaptable"}
+                </p>
               )}
               <div className="flex gap-2">
                 <Button
@@ -173,7 +256,19 @@ export default function MiniGames() {
                 >
                   {t("games.backToGames")}
                 </Button>
-                <Button>{t("games.nextQuestion")}</Button>
+                <Button
+                  type="button"
+                  disabled={!multipleAnswer}
+                  onClick={() => {
+                    setMultipleSubmitted(true);
+                    const score = multipleAnswer === word.en ? 100 : 50;
+                    saveGameResult(score);
+                    toast.success(locale === "vi" ? "Da luu ket qua" : "Result saved");
+                    setActiveTab("selection");
+                  }}
+                >
+                  {t("games.nextQuestion")}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -202,10 +297,28 @@ export default function MiniGames() {
                 >
                   {t("games.backToGames")}
                 </Button>
-                <Button disabled={!typedAnswer}>
+                <Button
+                  disabled={!typedAnswer}
+                  type="button"
+                  onClick={() => {
+                    setTypingSubmitted(true);
+                    const score =
+                      typedAnswer.trim().toLowerCase() === word.en.toLowerCase()
+                        ? 100
+                        : 40;
+                    saveGameResult(score);
+                    toast.success(locale === "vi" ? "Da nop dap an" : "Answer submitted");
+                    setActiveTab("selection");
+                  }}
+                >
                   {t("games.submitAnswer")}
                 </Button>
               </div>
+              {typingSubmitted && (
+                <p className="text-sm text-muted-foreground">
+                  {locale === "vi" ? "Da ghi nhan ket qua typing" : "Typing result recorded"}
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -241,10 +354,27 @@ export default function MiniGames() {
                 <Button variant="outline" onClick={() => setBuiltWord("")}>
                   {t("games.reset")}
                 </Button>
-                <Button onClick={() => setActiveTab("selection")}>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setBuilderSubmitted(true);
+                    const score = builtWord === "ADAPTABLE" ? 100 : 35;
+                    saveGameResult(score);
+                    toast.success(locale === "vi" ? "Da nop dap an" : "Answer submitted");
+                    setActiveTab("selection");
+                  }}
+                  disabled={builtWord.length === 0}
+                >
                   {t("games.submitAnswer")}
                 </Button>
               </div>
+              {builderSubmitted && (
+                <p className="text-sm text-muted-foreground">
+                  {locale === "vi"
+                    ? "Da ghi nhan ket qua xep chu"
+                    : "Builder result recorded"}
+                </p>
+              )}
             </CardContent>
           </Card>
         )}

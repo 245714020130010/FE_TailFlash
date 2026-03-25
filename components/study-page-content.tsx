@@ -102,7 +102,7 @@ export default function StudyPageContent() {
               {t("study.subtitle")}
             </h1>
             <p className="mt-3 max-w-2xl text-muted-foreground">
-              Giao diện tối giản giống flashcards.world: chọn bộ thẻ, bấm học,
+              Giao diện tối giản giống Flash Cards: chọn bộ thẻ, bấm học,
               chỉ 1 quyết định cho mỗi thẻ. Games và dashboard gọn, không phân
               tán.
             </p>

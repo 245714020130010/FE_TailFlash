@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,59 +8,82 @@ import { Card } from "@/components/ui/card";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/components/language-provider";
+import { readDemoState, updateDemoState } from "@/lib/demo-store";
 import { BookOpen, Plus, Search, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
 export default function DecksPageContent() {
   const { locale, t } = useLanguage();
+  const [query, setQuery] = useState("");
+  const [expandedDeckId, setExpandedDeckId] = useState<string | null>(null);
+  const [demoState, setDemoState] = useState(() => readDemoState());
 
-  const decks =
-    locale === "vi"
-      ? [
-          {
-            id: 1,
-            name: "TOEIC Core 600",
-            cards: 600,
-            level: "Trung bình",
-            status: t("decks.active"),
-          },
-          {
-            id: 2,
-            name: "Daily Conversation",
-            cards: 180,
-            level: "Cơ bản",
-            status: t("decks.due"),
-          },
-          {
-            id: 3,
-            name: "Business Email",
-            cards: 120,
-            level: "Nâng cao",
-            status: t("decks.new"),
-          },
-        ]
-      : [
-          {
-            id: 1,
-            name: "TOEIC Core 600",
-            cards: 600,
-            level: "Intermediate",
-            status: t("decks.active"),
-          },
-          {
-            id: 2,
-            name: "Daily Conversation",
-            cards: 180,
-            level: "Basic",
-            status: t("decks.due"),
-          },
-          {
-            id: 3,
-            name: "Business Email",
-            cards: 120,
-            level: "Advanced",
-            status: t("decks.new"),
-          },
-        ];
+  const decks = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return demoState.decks
+      .map((deck) => {
+        const status =
+          deck.dueToday > 12
+            ? t("decks.due")
+            : deck.mastered > deck.cards * 0.6
+              ? t("decks.active")
+              : t("decks.new");
+
+        return {
+          ...deck,
+          level: locale === "vi" ? deck.levelVi : deck.levelEn,
+          desc: locale === "vi" ? deck.descVi : deck.descEn,
+          status,
+        };
+      })
+      .filter((deck) => {
+        if (!normalizedQuery) {
+          return true;
+        }
+
+        return (
+          deck.name.toLowerCase().includes(normalizedQuery) ||
+          deck.level.toLowerCase().includes(normalizedQuery)
+        );
+      });
+  }, [demoState.decks, locale, query, t]);
+
+  const createDeck = () => {
+    const timestamp = Date.now();
+    const newDeck = {
+      id: `deck-${timestamp}`,
+      name:
+        locale === "vi"
+          ? `Bo tu moi ${demoState.decks.length + 1}`
+          : `New deck ${demoState.decks.length + 1}`,
+      descVi: "Bo tu do ban tao trong che do demo",
+      descEn: "Deck created by you in demo mode",
+      cards: 40,
+      mastered: 0,
+      reviewedToday: 0,
+      levelVi: "Moi",
+      levelEn: "New",
+      dueToday: 20,
+    };
+
+    const nextState = updateDemoState((current) => ({
+      ...current,
+      decks: [newDeck, ...current.decks],
+      selectedDeckId: newDeck.id,
+    }));
+
+    setDemoState(nextState);
+    toast.success(locale === "vi" ? "Da tao bo tu demo" : "Demo deck created");
+  };
+
+  const selectDeck = (deckId: string) => {
+    const nextState = updateDemoState((current) => ({
+      ...current,
+      selectedDeckId: deckId,
+    }));
+
+    setDemoState(nextState);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -96,7 +120,7 @@ export default function DecksPageContent() {
             </h1>
             <p className="mt-1 text-muted-foreground">{t("decks.subtitle")}</p>
           </div>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button className="bg-primary hover:bg-primary/90" onClick={createDeck}>
             <Plus className="mr-2 h-4 w-4" />
             {t("decks.createDeck")}
           </Button>
@@ -108,6 +132,8 @@ export default function DecksPageContent() {
             <Input
               className="pl-10"
               placeholder={t("decks.searchPlaceholder")}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
             />
           </div>
         </section>
@@ -130,11 +156,37 @@ export default function DecksPageContent() {
                 {t("decks.level")}: {deck.level}
               </div>
 
+              {expandedDeckId === deck.id && (
+                <div className="mb-4 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+                  <p>{deck.desc}</p>
+                  <p className="mt-1">
+                    {locale === "vi" ? "Can on hom nay" : "Due today"}: {deck.dueToday}
+                  </p>
+                  <p>
+                    {locale === "vi" ? "Da nho" : "Mastered"}: {deck.mastered}/{deck.cards}
+                  </p>
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <Link href="/study/session" className="flex-1">
-                  <Button className="w-full">{t("decks.start")}</Button>
+                  <Button
+                    className="w-full"
+                    onClick={() => selectDeck(deck.id)}
+                  >
+                    {t("decks.start")}
+                  </Button>
                 </Link>
-                <Button variant="outline" className="flex-1">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  type="button"
+                  onClick={() =>
+                    setExpandedDeckId((current) =>
+                      current === deck.id ? null : deck.id,
+                    )
+                  }
+                >
                   {t("decks.detail")}
                 </Button>
               </div>

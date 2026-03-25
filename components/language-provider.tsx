@@ -13,18 +13,18 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<Locale>(() => {
-    if (typeof window === "undefined") {
-      return "vi";
-    }
+  const [locale, setLocale] = useState<Locale>("vi");
 
+  useEffect(() => {
     const stored = window.localStorage.getItem("tailflash-locale");
     if (stored === "vi" || stored === "en") {
-      return stored;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLocale(stored);
+      return;
     }
 
-    return navigator.language.toLowerCase().startsWith("en") ? "en" : "vi";
-  });
+    setLocale(navigator.language.toLowerCase().startsWith("en") ? "en" : "vi");
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem("tailflash-locale", locale);

@@ -1,83 +1,50 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useLanguage } from "@/components/language-provider";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
+import { type DemoState, readDemoState } from "@/lib/demo-store";
 import { BookOpen, Flame, Plus, Timer, TrendingUp } from "lucide-react";
 
 export default function LearnerDashboard() {
   const { locale, t } = useLanguage();
+  const [demoState] = useState<DemoState>(() => readDemoState());
 
-  const deckData =
-    locale === "vi"
-      ? [
-          {
-            id: "1",
-            name: "TOEIC Core",
-            desc: "Từ vựng cốt lõi cho TOEIC",
-            cards: 120,
-            mastered: 64,
-            reviewedToday: 16,
-          },
-          {
-            id: "2",
-            name: "Business English",
-            desc: "Từ vựng công sở thực tế",
-            cards: 80,
-            mastered: 27,
-            reviewedToday: 7,
-          },
-          {
-            id: "3",
-            name: "Daily Conversation",
-            desc: "Mẫu câu giao tiếp hằng ngày",
-            cards: 60,
-            mastered: 35,
-            reviewedToday: 4,
-          },
-        ]
-      : [
-          {
-            id: "1",
-            name: "TOEIC Core",
-            desc: "Core vocabulary for TOEIC",
-            cards: 120,
-            mastered: 64,
-            reviewedToday: 16,
-          },
-          {
-            id: "2",
-            name: "Business English",
-            desc: "Practical office vocabulary",
-            cards: 80,
-            mastered: 27,
-            reviewedToday: 7,
-          },
-          {
-            id: "3",
-            name: "Daily Conversation",
-            desc: "Everyday conversation patterns",
-            cards: 60,
-            mastered: 35,
-            reviewedToday: 4,
-          },
-        ];
-
-  const totalCards = deckData.reduce((sum, deck) => sum + deck.cards, 0);
-  const cardsReviewedToday = deckData.reduce(
-    (sum, deck) => sum + deck.reviewedToday,
-    0,
-  );
+  const deckData = demoState.decks.map((deck) => ({
+    id: deck.id,
+    name: deck.name,
+    desc: locale === "vi" ? deck.descVi : deck.descEn,
+    cards: deck.cards,
+    mastered: deck.mastered,
+    reviewedToday: deck.reviewedToday,
+  }));
 
   const stats = [
-    { key: "todayCards", value: cardsReviewedToday, icon: BookOpen },
-    { key: "streak", value: 15, icon: Flame },
-    { key: "totalCards", value: totalCards, icon: TrendingUp },
-    { key: "accuracy", value: "89%", icon: TrendingUp },
-    { key: "studyTime", value: "128h", icon: Timer },
+    {
+      key: "todayCards",
+      value: demoState.studyStats.todayCards,
+      icon: BookOpen,
+    },
+    { key: "streak", value: demoState.studyStats.streakDays, icon: Flame },
+    {
+      key: "totalCards",
+      value: demoState.studyStats.totalCards,
+      icon: TrendingUp,
+    },
+    {
+      key: "accuracy",
+      value: `${demoState.studyStats.accuracy}%`,
+      icon: TrendingUp,
+    },
+    {
+      key: "studyTime",
+      value: `${Math.round(demoState.studyStats.totalStudyMinutes / 60)}h`,
+      icon: Timer,
+    },
   ];
 
   const recentActivity =

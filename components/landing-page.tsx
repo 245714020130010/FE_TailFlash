@@ -109,7 +109,7 @@ export default function LandingPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                flashcards.world style
+                Flash Cards style
               </p>
               <span className="text-xl font-semibold">TailFlash</span>
             </div>
@@ -144,7 +144,7 @@ export default function LandingPage() {
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary shadow-sm">
               <Wand2 className="h-4 w-4" />
-              Học nhanh kiểu flashcards.world
+              Học nhanh kiểu Flash Cards
             </div>
             <div className="space-y-3">
               <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
@@ -282,7 +282,7 @@ export default function LandingPage() {
                 Tối giản thao tác, tối đa tập trung
               </h2>
               <p className="mt-3 max-w-2xl text-muted-foreground">
-                Lấy cảm hứng từ flashcards.world: chỉ giữ lại các thao tác cần
+                Lấy cảm hứng từ Flash Cards: chỉ giữ lại các thao tác cần
                 thiết, gộp SRS + mini games + ghi chú vào một luồng duy nhất.
               </p>
             </div>
@@ -405,7 +405,7 @@ export default function LandingPage() {
               Học linh hoạt nhưng không bị rối
             </h2>
             <p className="text-muted-foreground">
-              Học nhanh kiểu flashcards.world, nhưng thêm mini games và
+              Học nhanh kiểu Flash Cards, nhưng thêm mini games và
               dashboard gọn gàng. Mọi thứ gắn với SRS, không tách rời.
             </p>
             <div className="space-y-3">
@@ -654,7 +654,7 @@ export default function LandingPage() {
                 Sẵn sàng chưa?
               </p>
               <h2 className="text-3xl font-bold">
-                Học theo phong cách flashcards.world, nhưng đầy đủ tính năng
+                Học theo phong cách Flash Cards, nhưng đầy đủ tính năng
               </h2>
               <p className="text-sm opacity-90">
                 Giữ nguyên cài đặt hiện tại · Không mất dữ liệu · Có thể quay

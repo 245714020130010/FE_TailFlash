@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Eye,
   EyeOff,
@@ -14,9 +15,12 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
+import { updateDemoState } from "@/lib/demo-store";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const { t } = useLanguage();
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,7 +30,20 @@ export default function LoginPage() {
     event.preventDefault();
     setIsLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 1200));
+    updateDemoState((current) => ({
+      ...current,
+      session: {
+        isLoggedIn: true,
+        email,
+      },
+      profile: {
+        ...current.profile,
+        email,
+      },
+    }));
     setIsLoading(false);
+    toast.success("Dang nhap demo thanh cong");
+    router.push("/dashboard");
   };
 
   return (
@@ -126,10 +143,20 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-3">
-            <Button variant="outline" className="w-full">
+            <Button
+              variant="outline"
+              className="w-full"
+              type="button"
+              onClick={() => toast.info("Demo chua ket noi OAuth")}
+            >
               Google
             </Button>
-            <Button variant="outline" className="w-full">
+            <Button
+              variant="outline"
+              className="w-full"
+              type="button"
+              onClick={() => toast.info("Demo chua ket noi OAuth")}
+            >
               Facebook
             </Button>
           </div>
@@ -150,7 +177,7 @@ export default function LoginPage() {
             Giao diện tối giản, vẫn đủ SRS + mini games
           </h2>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Học kiểu flashcards.world: ít nút, phím tắt rõ ràng, một quyết định
+            Học kiểu Flash Cards: ít nút, phím tắt rõ ràng, một quyết định
             duy nhất cho mỗi thẻ. Dashboard và game nằm trong cùng luồng.
           </p>
 

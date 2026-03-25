@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,19 +12,70 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
+import { readDemoState, updateDemoState } from "@/lib/demo-store";
+import { toast } from "sonner";
 
 export default function ProfileSettings() {
   const { locale, t } = useLanguage();
-  const [name, setName] = useState(
-    locale === "vi" ? "Nguyễn Văn A" : "John Learner",
-  );
-  const [email, setEmail] = useState("learner@example.com");
-  const [phone, setPhone] = useState("+84 912 345 678");
+  const initialDemoState = readDemoState();
+  const [name, setName] = useState(initialDemoState.profile.fullName);
+  const [email, setEmail] = useState(initialDemoState.profile.email);
+  const [phone, setPhone] = useState(initialDemoState.profile.phone);
   const [bio, setBio] = useState(
     locale === "vi"
-      ? "Người học yêu thích flashcards."
-      : "Learner who loves flashcards.",
+      ? initialDemoState.profile.bioVi
+      : initialDemoState.profile.bioEn,
   );
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const canUpdatePassword = useMemo(() => {
+    return (
+      currentPassword.trim().length > 0 &&
+      newPassword.trim().length >= 8 &&
+      newPassword === confirmPassword
+    );
+  }, [confirmPassword, currentPassword, newPassword]);
+
+  const handleSaveProfile = () => {
+    updateDemoState((current) => ({
+      ...current,
+      profile: {
+        ...current.profile,
+        fullName: name,
+        email,
+        phone,
+        bioVi: locale === "vi" ? bio : current.profile.bioVi,
+        bioEn: locale === "en" ? bio : current.profile.bioEn,
+      },
+      session: {
+        ...current.session,
+        email,
+      },
+    }));
+    toast.success(locale === "vi" ? "Da luu ho so demo" : "Demo profile saved");
+  };
+
+  const handleUpdatePassword = () => {
+    if (!canUpdatePassword) {
+      toast.error(
+        locale === "vi"
+          ? "Kiem tra lai mat khau moi va xac nhan"
+          : "Please check your new password and confirmation",
+      );
+      return;
+    }
+
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    toast.success(
+      locale === "vi"
+        ? "Mat khau demo da duoc cap nhat"
+        : "Demo password has been updated",
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/50">
@@ -110,7 +161,9 @@ export default function ProfileSettings() {
                     />
                   </div>
                 </div>
-                <Button>{t("profile.saveChanges")}</Button>
+                <Button type="button" onClick={handleSaveProfile}>
+                  {t("profile.saveChanges")}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -127,6 +180,8 @@ export default function ProfileSettings() {
                 <input
                   id="current-password"
                   type="password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
                   placeholder={
                     locale === "vi" ? "Mật khẩu hiện tại" : "Current password"
                   }
@@ -138,6 +193,8 @@ export default function ProfileSettings() {
                 <input
                   id="new-password"
                   type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
                   placeholder={
                     locale === "vi" ? "Mật khẩu mới" : "New password"
                   }
@@ -151,6 +208,8 @@ export default function ProfileSettings() {
                 <input
                   id="confirm-password"
                   type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
                   placeholder={
                     locale === "vi"
                       ? "Nhập lại mật khẩu mới"
@@ -158,7 +217,13 @@ export default function ProfileSettings() {
                   }
                   className="w-full rounded-md border border-input bg-background px-3 py-2"
                 />
-                <Button>{t("profile.updatePassword")}</Button>
+                <Button
+                  type="button"
+                  onClick={handleUpdatePassword}
+                  disabled={!canUpdatePassword}
+                >
+                  {t("profile.updatePassword")}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -187,7 +252,18 @@ export default function ProfileSettings() {
                     />
                   </label>
                 ))}
-                <Button>{t("profile.saveChanges")}</Button>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    toast.success(
+                      locale === "vi"
+                        ? "Da luu tuy chon thong bao"
+                        : "Notification preferences saved",
+                    )
+                  }
+                >
+                  {t("profile.saveChanges")}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -223,12 +299,28 @@ export default function ProfileSettings() {
             <Button
               variant="outline"
               className="w-full justify-start text-destructive"
+              type="button"
+              onClick={() =>
+                toast.info(
+                  locale === "vi"
+                    ? "Da dang xuat tat ca phien demo"
+                    : "All demo sessions have been signed out",
+                )
+              }
             >
               {t("profile.logoutAll")}
             </Button>
             <Button
               variant="outline"
               className="w-full justify-start text-destructive"
+              type="button"
+              onClick={() =>
+                toast.warning(
+                  locale === "vi"
+                    ? "Che do demo: tai khoan khong bi xoa that"
+                    : "Demo mode: account is not actually deleted",
+                )
+              }
             >
               {t("profile.deleteAccount")}
             </Button>

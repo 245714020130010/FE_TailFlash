@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
+import { readDemoState, recordStudyResult } from "@/lib/demo-store";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Sparkles,
@@ -73,12 +75,18 @@ const SAMPLE_FLASHCARDS: Flashcard[] = [
 ];
 
 export default function FlashcardStudyPage() {
+  const [selectedDeckName] = useState(() => {
+    const state = readDemoState();
+    const selectedDeck = state.decks.find((deck) => deck.id === state.selectedDeckId);
+    return selectedDeck?.name ?? "TOEIC Core";
+  });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const cards = SAMPLE_FLASHCARDS;
+  const cards = useMemo(() => SAMPLE_FLASHCARDS, []);
   const [showResult, setShowResult] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [studySession, setStudySession] = useState(true);
+  const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null);
 
   const currentCard = cards[currentIndex];
   const progress = (currentIndex / cards.length) * 100;
@@ -87,10 +95,11 @@ export default function FlashcardStudyPage() {
     setIsFlipped(!isFlipped);
   };
 
-  const handleResponse = (correct: boolean) => {
+  const handleResponse = useCallback((correct: boolean) => {
     if (correct) {
       setCorrectCount(correctCount + 1);
     }
+    setLastAnswerCorrect(correct);
     setShowResult(true);
 
     setTimeout(() => {
@@ -98,11 +107,38 @@ export default function FlashcardStudyPage() {
         setCurrentIndex(currentIndex + 1);
         setIsFlipped(false);
         setShowResult(false);
+        setLastAnswerCorrect(null);
       } else {
+        const state = readDemoState();
+        recordStudyResult({
+          correctCount: correct ? correctCount + 1 : correctCount,
+          totalCards: cards.length,
+          deckId: state.selectedDeckId,
+        });
+        toast.success("Da luu ket qua phien hoc demo");
         setStudySession(false);
       }
     }, 1000);
-  };
+  }, [cards.length, correctCount, currentIndex]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isFlipped || showResult) {
+        return;
+      }
+
+      if (event.key === "1" || event.key === "2") {
+        handleResponse(false);
+      }
+
+      if (event.key === "3" || event.key === "4") {
+        handleResponse(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleResponse, isFlipped, showResult]);
 
   const handleRestart = () => {
     setCurrentIndex(0);
@@ -110,6 +146,7 @@ export default function FlashcardStudyPage() {
     setShowResult(false);
     setCorrectCount(0);
     setStudySession(true);
+    setLastAnswerCorrect(null);
   };
 
   if (!studySession) {
@@ -126,7 +163,7 @@ export default function FlashcardStudyPage() {
               </Link>
               <div>
                 <h1 className="font-semibold text-foreground">
-                  TOEIC 600 - Bộ 1
+                  {selectedDeckName}
                 </h1>
               </div>
             </div>
@@ -209,7 +246,7 @@ export default function FlashcardStudyPage() {
               </Link>
               <div>
                 <h1 className="font-semibold text-foreground">
-                  TOEIC 600 - Bộ 1
+                  {selectedDeckName}
                 </h1>
                 <p className="text-xs text-muted-foreground">
                   New + Review · phím 1-4 để chọn mức nhớ
@@ -310,6 +347,8 @@ export default function FlashcardStudyPage() {
                 variant="outline"
                 size="lg"
                 className="flex-1 border-border hover:bg-muted"
+                type="button"
+                onClick={() => toast.info("Ghi chu demo se co o ban backend")}
               >
                 <MessageCircle className="w-4 h-4 mr-2" />
                 Ghi chú
@@ -318,6 +357,12 @@ export default function FlashcardStudyPage() {
                 variant="outline"
                 size="lg"
                 className="flex-1 border-border hover:bg-muted"
+                type="button"
+                onClick={() => {
+                  setIsFlipped(false);
+                  setShowResult(false);
+                  toast.info("The hien tai da duoc lap lai");
+                }}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Lặp lại
@@ -363,12 +408,12 @@ export default function FlashcardStudyPage() {
             <div className="animate-in fade-in-50 duration-300">
               <div
                 className={`p-4 rounded-lg text-center font-medium ${
-                  correctCount > currentIndex
+                  lastAnswerCorrect
                     ? "bg-primary/10 text-primary"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
-                {correctCount > currentIndex
+                {lastAnswerCorrect
                   ? "✓ Tuyệt vời! Bạn đã ghi nhớ từ này"
                   : "→ Cần ôn tập thêm từ này"}
               </div>

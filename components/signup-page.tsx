@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Check,
   Eye,
@@ -15,9 +16,12 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
+import { updateDemoState } from "@/lib/demo-store";
+import { toast } from "sonner";
 
 export default function SignupPage() {
   const { t } = useLanguage();
+  const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,7 +46,22 @@ export default function SignupPage() {
     event.preventDefault();
     setIsLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 1200));
+    updateDemoState((current) => ({
+      ...current,
+      profile: {
+        ...current.profile,
+        fullName,
+        email,
+        role,
+      },
+      session: {
+        isLoggedIn: true,
+        email,
+      },
+    }));
     setIsLoading(false);
+    toast.success("Tao tai khoan demo thanh cong");
+    router.push("/onboarding");
   };
 
   return (
@@ -181,13 +200,13 @@ export default function SignupPage() {
               />
               <span>
                 {t("auth.termsPrefix")} {" "}
-                <a href="#" className="text-primary">
+                <Link href="/terms" className="text-primary hover:underline">
                   {t("auth.terms")}
-                </a>{" "}
+                </Link>{" "}
                 & {" "}
-                <a href="#" className="text-primary">
+                <Link href="/privacy" className="text-primary hover:underline">
                   {t("auth.privacy")}
-                </a>
+                </Link>
               </span>
             </label>
 
@@ -207,10 +226,20 @@ export default function SignupPage() {
           </div>
 
           <div className="space-y-3">
-            <Button variant="outline" className="w-full">
+            <Button
+              variant="outline"
+              className="w-full"
+              type="button"
+              onClick={() => toast.info("Demo chua ket noi OAuth")}
+            >
               Google
             </Button>
-            <Button variant="outline" className="w-full">
+            <Button
+              variant="outline"
+              className="w-full"
+              type="button"
+              onClick={() => toast.info("Demo chua ket noi OAuth")}
+            >
               Facebook
             </Button>
           </div>
@@ -231,7 +260,7 @@ export default function SignupPage() {
             Đồng bộ SRS, giữ hotkey, mở dashboard mini games
           </h2>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Giữ trải nghiệm flashcards.world nhưng thêm streak, biểu đồ và trò chơi. Mọi cài đặt cá nhân của bạn vẫn được giữ nguyên sau khi đăng ký.
+            Giữ trải nghiệm Flash Cards nhưng thêm streak, biểu đồ và trò chơi. Mọi cài đặt cá nhân của bạn vẫn được giữ nguyên sau khi đăng ký.
           </p>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">

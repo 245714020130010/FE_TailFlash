@@ -1,14 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/components/theme-provider";
 import { useLanguage } from "@/components/language-provider";
 import { Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
 
 export default function HeaderThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const { t } = useLanguage();
-
   const isDark = resolvedTheme === "dark";
 
   return (
