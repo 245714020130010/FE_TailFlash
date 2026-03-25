@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -12,11 +13,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/components/language-provider";
 import { useTheme } from "@/components/theme-provider";
+import { readDemoState, setDemoRole, type DemoRole } from "@/lib/demo-store";
 import { Globe, Languages, Moon, Settings2, Sun } from "lucide-react";
+import { toast } from "sonner";
 
 export default function GlobalSettings() {
   const { theme, setTheme } = useTheme();
   const { locale, setLocale, t } = useLanguage();
+  const role = readDemoState().profile.role;
+
+  const roleLabels: Record<DemoRole, { vi: string; en: string }> = {
+    learner: { vi: t("settings.roleLearner"), en: t("settings.roleLearner") },
+    teacher: { vi: t("settings.roleTeacher"), en: t("settings.roleTeacher") },
+    admin: { vi: t("settings.roleAdmin"), en: t("settings.roleAdmin") },
+  };
 
   return (
     <div className="fixed bottom-4 right-4 z-[60]">
@@ -74,6 +84,44 @@ export default function GlobalSettings() {
               {t("settings.languageEn")}
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
+            {t("settings.demoRole")}
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={role}
+            onValueChange={(value) => {
+              const nextRole = value as DemoRole;
+              setDemoRole(nextRole);
+              toast.success(
+                `${t("settings.roleSwitched")}: ${roleLabels[nextRole][locale]}`,
+              );
+            }}
+          >
+            <DropdownMenuRadioItem value="learner">
+              {t("settings.roleLearner")}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="teacher">
+              {t("settings.roleTeacher")}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="admin">
+              {t("settings.roleAdmin")}
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              const nextRole = readDemoState().profile.role;
+              toast.info(
+                `${t("settings.currentRole")}: ${roleLabels[nextRole][locale]}`,
+              );
+            }}
+          >
+            {t("settings.checkCurrentRole")}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

@@ -87,6 +87,11 @@ export default function StudyPageContent() {
                 {t("common.startLearning")}
               </Button>
             </Link>
+            <Link href="/study/settings" className="hidden sm:block">
+              <Button variant="outline" size="sm">
+                SRS settings
+              </Button>
+            </Link>
           </nav>
         </div>
       </header>
@@ -253,6 +258,31 @@ export default function StudyPageContent() {
               <Link href="/profile">
                 <Button variant="outline" size="sm">
                   Profile
+                </Button>
+              </Link>
+              <Link href="/tests">
+                <Button variant="outline" size="sm">
+                  Mini Test
+                </Button>
+              </Link>
+              <Link href="/study/settings">
+                <Button variant="outline" size="sm">
+                  SRS settings
+                </Button>
+              </Link>
+              <Link href="/reminders">
+                <Button variant="outline" size="sm">
+                  Reminder Center
+                </Button>
+              </Link>
+              <Link href="/teacher">
+                <Button variant="outline" size="sm">
+                  Teacher Workspace
+                </Button>
+              </Link>
+              <Link href="/admin">
+                <Button variant="outline" size="sm">
+                  Admin Workspace
                 </Button>
               </Link>
             </div>

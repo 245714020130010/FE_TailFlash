@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "@/components/providers";
 import GlobalSettings from "@/components/global-settings";
+import RightTaskbar from "@/components/right-taskbar";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
@@ -47,6 +48,7 @@ export default function RootLayout({
       >
         <Providers>
           {children}
+          <RightTaskbar />
           <GlobalSettings />
         </Providers>
         <Analytics />

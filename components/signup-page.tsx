@@ -61,7 +61,7 @@ export default function SignupPage() {
       },
     }));
     setIsLoading(false);
-    toast.success("Tao tai khoan demo thanh cong");
+    toast.success("Tạo tài khoản demo thành công");
     router.push("/onboarding");
   };
 

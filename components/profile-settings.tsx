@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
 import {
+  getDemoLevelFromXp,
   readDemoState,
   resetDemoState,
   saveStudyNote,
@@ -48,6 +49,38 @@ export default function ProfileSettings() {
   const [noteDraft, setNoteDraft] = useState(
     initialDemoState.studyNotes[initialDemoState.selectedDeckId] ?? "",
   );
+  const [sessionProvider, setSessionProvider] = useState(
+    initialDemoState.session.provider,
+  );
+  const levelInfo = getDemoLevelFromXp(initialDemoState.pointsLedger.total);
+  const levelLabels = {
+    beginner: locale === "vi" ? "Người mới" : "Beginner",
+    learner: locale === "vi" ? "Người học" : "Learner",
+    intermediate: locale === "vi" ? "Trung cấp" : "Intermediate",
+    advanced: locale === "vi" ? "Nâng cao" : "Advanced",
+    master: locale === "vi" ? "Bậc thầy" : "Master",
+  } as const;
+
+  const providerBadge = useMemo(() => {
+    if (sessionProvider === "google") {
+      return {
+        label: t("profile.providerGoogle"),
+        className: "border border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
+      };
+    }
+
+    if (sessionProvider === "facebook") {
+      return {
+        label: t("profile.providerFacebook"),
+        className: "border border-blue-500/30 bg-blue-500/10 text-blue-700",
+      };
+    }
+
+    return {
+      label: t("profile.providerPassword"),
+      className: "border border-border bg-muted text-muted-foreground",
+    };
+  }, [sessionProvider, t]);
 
   const canUpdatePassword = useMemo(() => {
     return (
@@ -73,14 +106,14 @@ export default function ProfileSettings() {
         email,
       },
     }));
-    toast.success(locale === "vi" ? "Da luu ho so demo" : "Demo profile saved");
+    toast.success(locale === "vi" ? "Đã lưu hồ sơ demo" : "Demo profile saved");
   };
 
   const handleUpdatePassword = () => {
     if (!canUpdatePassword) {
       toast.error(
         locale === "vi"
-          ? "Kiem tra lai mat khau moi va xac nhan"
+          ? "Kiểm tra lại mật khẩu mới và xác nhận"
           : "Please check your new password and confirmation",
       );
       return;
@@ -91,7 +124,7 @@ export default function ProfileSettings() {
     setConfirmPassword("");
     toast.success(
       locale === "vi"
-        ? "Mat khau demo da duoc cap nhat"
+        ? "Mật khẩu demo đã được cập nhật"
         : "Demo password has been updated",
     );
   };
@@ -103,10 +136,11 @@ export default function ProfileSettings() {
   };
 
   const handleSignOutAll = () => {
-    signOutAllDemoSessions();
+    const nextState = signOutAllDemoSessions();
+    setSessionProvider(nextState.session.provider);
     toast.info(
       locale === "vi"
-        ? "Da dang xuat tat ca phien demo"
+        ? "Đã đăng xuất tất cả phiên demo"
         : "All demo sessions have been signed out",
     );
   };
@@ -153,6 +187,7 @@ export default function ProfileSettings() {
     setStudyNotes(freshState.studyNotes);
     setSelectedNoteDeckId(freshState.selectedDeckId);
     setNoteDraft(freshState.studyNotes[freshState.selectedDeckId] ?? "");
+    setSessionProvider(freshState.session.provider);
     toast.success(t("profile.deleteSuccess"));
     router.push("/signup");
   };
@@ -166,6 +201,15 @@ export default function ProfileSettings() {
             <p className="text-sm text-muted-foreground">
               {t("profile.subtitle")}
             </p>
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs">
+              <span className="text-muted-foreground">{t("profile.providerLabel")}:</span>
+              <span className={`rounded-full px-2 py-0.5 font-medium ${providerBadge.className}`}>
+                {providerBadge.label}
+              </span>
+              <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-medium text-primary">
+                {locale === "vi" ? "Cấp độ" : "Level"}: {levelLabels[levelInfo.key]}
+              </span>
+            </div>
           </div>
           <HeaderThemeToggle />
         </div>

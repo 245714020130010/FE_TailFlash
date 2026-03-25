@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useLanguage } from "@/components/language-provider";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
-import { type DemoState, readDemoState } from "@/lib/demo-store";
+import { getDemoLevelFromXp, type DemoState, readDemoState } from "@/lib/demo-store";
 import { BookOpen, Flame, Plus, Timer, TrendingUp } from "lucide-react";
 
 export default function LearnerDashboard() {
@@ -23,42 +23,59 @@ export default function LearnerDashboard() {
     reviewedToday: deck.reviewedToday,
   }));
 
+  const levelInfo = getDemoLevelFromXp(demoState.pointsLedger.total);
+  const levelLabelMap = {
+    beginner: locale === "vi" ? "Beginner" : "Beginner",
+    learner: locale === "vi" ? "Learner" : "Learner",
+    intermediate: locale === "vi" ? "Intermediate" : "Intermediate",
+    advanced: locale === "vi" ? "Advanced" : "Advanced",
+    master: locale === "vi" ? "Master" : "Master",
+  };
+  const levelLabel = levelLabelMap[levelInfo.key];
+  const xpInLevel = demoState.pointsLedger.total - levelInfo.minXp;
+  const levelSpan = (levelInfo.maxXp ?? levelInfo.minXp + 1) - levelInfo.minXp;
+  const levelProgress = levelInfo.maxXp ? Math.round((xpInLevel / Math.max(1, levelSpan)) * 100) : 100;
+
   const stats = [
     {
       key: "todayCards",
+      label: t("dashboard.todayCards"),
       value: demoState.studyStats.todayCards,
       icon: BookOpen,
     },
-    { key: "streak", value: demoState.studyStats.streakDays, icon: Flame },
+    { key: "streak", label: t("dashboard.streak"), value: demoState.studyStats.streakDays, icon: Flame },
     {
       key: "totalCards",
+      label: t("dashboard.totalCards"),
       value: demoState.studyStats.totalCards,
       icon: TrendingUp,
     },
     {
+      key: "pointsTotal",
+      label: locale === "vi" ? "Tong diem" : "Total points",
+      value: demoState.pointsLedger.total,
+      icon: TrendingUp,
+    },
+    {
       key: "accuracy",
+      label: t("dashboard.accuracy"),
       value: `${demoState.studyStats.accuracy}%`,
       icon: TrendingUp,
     },
     {
       key: "studyTime",
+      label: t("dashboard.studyTime"),
       value: `${Math.round(demoState.studyStats.totalStudyMinutes / 60)}h`,
       icon: Timer,
     },
   ];
 
-  const recentActivity =
-    locale === "vi"
-      ? [
-          "Hoàn thành 16 thẻ trong TOEIC Core",
-          "Đạt streak 15 ngày liên tiếp",
-          "Ôn 7 thẻ Business English",
-        ]
-      : [
-          "Completed 16 cards in TOEIC Core",
-          "Reached a 15-day streak",
-          "Reviewed 7 Business English cards",
-        ];
+  const recentActivity = demoState.recentActivity.map((item) => {
+    const title = locale === "vi" ? item.titleVi : item.titleEn;
+    const pointsLabel = item.points > 0 ? `+${item.points} XP` : "0 XP";
+
+    return `${title} (${pointsLabel})`;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/50">
@@ -83,14 +100,44 @@ export default function LearnerDashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <section className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <Card className="mb-6 border-border/70 bg-card/80">
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {locale === "vi" ? "Level system theo XP" : "XP level system"}
+                </p>
+                <h2 className="text-xl font-bold">
+                  {levelLabel} · {demoState.pointsLedger.total} XP
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {levelInfo.maxXp
+                    ? locale === "vi"
+                      ? `${Math.max(0, levelInfo.maxXp - demoState.pointsLedger.total)} XP để lên level tiếp theo`
+                      : `${Math.max(0, levelInfo.maxXp - demoState.pointsLedger.total)} XP to next level`
+                    : locale === "vi"
+                      ? "Bạn đã ở level cao nhất"
+                      : "You are at the highest level"}
+                </p>
+              </div>
+              <Link href="/study/settings">
+                <Button variant="outline">SRS settings</Button>
+              </Link>
+            </div>
+            <div className="mt-4">
+              <Progress value={levelProgress} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <section className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6">
           {stats.map((item) => (
             <Card key={item.key}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                      {t(`dashboard.${item.key}`)}
+                      {item.label}
                     </p>
                     <p className="mt-1 text-2xl font-bold">{item.value}</p>
                   </div>
@@ -103,6 +150,36 @@ export default function LearnerDashboard() {
 
         <section className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2">
+            <Card className="mb-4 border-border/70 bg-card/70">
+              <CardContent className="flex flex-wrap gap-2 pt-6">
+                <Link href="/tests">
+                  <Button variant="outline" size="sm">
+                    {locale === "vi" ? "Mini Test" : "Mini Test"}
+                  </Button>
+                </Link>
+                <Link href="/reminders">
+                  <Button variant="outline" size="sm">
+                    {locale === "vi" ? "Nhac hoc" : "Reminders"}
+                  </Button>
+                </Link>
+                <Link href="/study/settings">
+                  <Button variant="outline" size="sm">
+                    SRS settings
+                  </Button>
+                </Link>
+                <Link href="/teacher">
+                  <Button variant="outline" size="sm">
+                    {locale === "vi" ? "Giao vien" : "Teacher"}
+                  </Button>
+                </Link>
+                <Link href="/admin">
+                  <Button variant="outline" size="sm">
+                    {locale === "vi" ? "Quan tri" : "Admin"}
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold">

@@ -16,3 +16,4 @@ Treat the rules below as default preferences. They can be overridden when task r
 - Limit console usage to warn and error only.
 - Even though next.config.mjs allows ignored TypeScript build errors, still resolve TypeScript issues in changed files.
 - Use pnpm-based workflow and run lint before finalizing changes.
+- For Vietnamese user-facing text (especially i18n messages, labels, toasts, and placeholders), always use proper Vietnamese diacritics.

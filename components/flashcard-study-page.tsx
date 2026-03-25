@@ -27,6 +27,8 @@ interface Flashcard {
   status: "new" | "learning" | "review" | "graduated";
 }
 
+type SrsMode = "new" | "review" | "mixed" | "cram" | "custom";
+
 const SAMPLE_FLASHCARDS: Flashcard[] = [
   {
     id: 1,
@@ -77,6 +79,7 @@ const SAMPLE_FLASHCARDS: Flashcard[] = [
 
 export default function FlashcardStudyPage() {
   const { t } = useLanguage();
+  const [srsSettings] = useState(() => readDemoState().srsSettings);
   const [selectedDeck] = useState(() => {
     const state = readDemoState();
     const currentDeck = state.decks.find((deck) => deck.id === state.selectedDeckId);
@@ -87,16 +90,124 @@ export default function FlashcardStudyPage() {
     };
   });
   const [deckNote, setDeckNote] = useState(selectedDeck.note);
+  const [isSessionStarted, setIsSessionStarted] = useState(false);
+  const [srsMode, setSrsMode] = useState<SrsMode>("mixed");
+  const [customStatuses, setCustomStatuses] = useState<Flashcard["status"][]>([
+    "new",
+    "learning",
+    "review",
+  ]);
+  const [customCardLimit, setCustomCardLimit] = useState(5);
+  const [sessionCards, setSessionCards] = useState<Flashcard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const cards = useMemo(() => SAMPLE_FLASHCARDS, []);
+  const allCards = useMemo(() => SAMPLE_FLASHCARDS, []);
   const [showResult, setShowResult] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [studySession, setStudySession] = useState(true);
   const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null);
 
-  const currentCard = cards[currentIndex];
-  const progress = (currentIndex / cards.length) * 100;
+  const currentCard = sessionCards[currentIndex];
+  const progress = sessionCards.length > 0 ? (currentIndex / sessionCards.length) * 100 : 0;
+
+  const modeLabel = useMemo(() => {
+    const labels: Record<SrsMode, string> = {
+      new: "New",
+      review: "Review",
+      mixed: "Mixed",
+      cram: "Cram",
+      custom: "Custom",
+    };
+
+    return labels[srsMode];
+  }, [srsMode]);
+
+  const nextSessionCandidates = useMemo(() => {
+    const baseFilter = (card: Flashcard) => {
+      if (srsMode === "new") {
+        return card.status === "new";
+      }
+
+      if (srsMode === "review") {
+        return card.status === "learning" || card.status === "review";
+      }
+
+      if (srsMode === "custom") {
+        return customStatuses.includes(card.status);
+      }
+
+      return true;
+    };
+
+    const filtered = allCards.filter(baseFilter);
+
+    const ordered = filtered;
+
+    const mixedLimit = Math.max(
+      1,
+      Math.min(allCards.length, srsSettings.newCardsPerDay + srsSettings.maxReviewCardsPerDay),
+    );
+
+    if (srsMode === "custom") {
+      return ordered.slice(0, Math.max(1, Math.min(customCardLimit, ordered.length)));
+    }
+
+    if (srsMode === "new") {
+      return ordered.slice(0, Math.min(ordered.length, srsSettings.newCardsPerDay));
+    }
+
+    if (srsMode === "review") {
+      return ordered.slice(0, Math.min(ordered.length, srsSettings.maxReviewCardsPerDay));
+    }
+
+    if (srsMode === "mixed") {
+      return ordered.slice(0, Math.min(ordered.length, mixedLimit));
+    }
+
+    return ordered;
+  }, [
+    allCards,
+    customCardLimit,
+    customStatuses,
+    srsMode,
+    srsSettings.maxReviewCardsPerDay,
+    srsSettings.newCardsPerDay,
+  ]);
+
+  const toggleCustomStatus = (status: Flashcard["status"]) => {
+    setCustomStatuses((previous) => {
+      if (previous.includes(status)) {
+        if (previous.length === 1) {
+          return previous;
+        }
+
+        return previous.filter((item) => item !== status);
+      }
+
+      return [...previous, status];
+    });
+  };
+
+  const startSession = () => {
+    if (nextSessionCandidates.length === 0) {
+      toast.error("Chưa có thẻ phù hợp với mode đã chọn");
+      return;
+    }
+
+    const base = [...nextSessionCandidates];
+    const preparedCards =
+      srsMode === "cram" || srsSettings.cardOrder === "random"
+        ? base.sort(() => Math.random() - 0.5)
+        : base;
+
+    setSessionCards(preparedCards);
+    setCurrentIndex(0);
+    setCorrectCount(0);
+    setIsFlipped(false);
+    setShowResult(false);
+    setLastAnswerCorrect(null);
+    setIsSessionStarted(true);
+  };
 
   const handleFlip = () => {
     setIsFlipped(!isFlipped);
@@ -110,23 +221,29 @@ export default function FlashcardStudyPage() {
     setShowResult(true);
 
     setTimeout(() => {
-      if (currentIndex < cards.length - 1) {
+      if (currentIndex < sessionCards.length - 1) {
         setCurrentIndex(currentIndex + 1);
         setIsFlipped(false);
         setShowResult(false);
         setLastAnswerCorrect(null);
       } else {
         const state = readDemoState();
-        recordStudyResult({
-          correctCount: correct ? correctCount + 1 : correctCount,
-          totalCards: cards.length,
-          deckId: state.selectedDeckId || selectedDeck.id,
-        });
-        toast.success("Da luu ket qua phien hoc demo");
+
+        if (srsMode === "cram") {
+          toast.info("Cram mode chỉ luyện nhanh, không cộng tiến độ deck");
+        } else {
+          recordStudyResult({
+            correctCount: correct ? correctCount + 1 : correctCount,
+            totalCards: sessionCards.length,
+            deckId: state.selectedDeckId || selectedDeck.id,
+          });
+          toast.success("Đã lưu kết quả phiên học demo");
+        }
+
         setStudySession(false);
       }
     }, 1000);
-  }, [cards.length, correctCount, currentIndex, selectedDeck.id]);
+  }, [correctCount, currentIndex, selectedDeck.id, sessionCards.length, srsMode]);
 
   const handleSaveNote = () => {
     const value = window.prompt(t("study.notePrompt"), deckNote);
@@ -145,7 +262,7 @@ export default function FlashcardStudyPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isFlipped || showResult) {
+      if (!isSessionStarted || !isFlipped || showResult) {
         return;
       }
 
@@ -160,14 +277,16 @@ export default function FlashcardStudyPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleResponse, isFlipped, showResult]);
+  }, [handleResponse, isFlipped, isSessionStarted, showResult]);
 
   const handleRestart = () => {
+    setSessionCards([]);
     setCurrentIndex(0);
     setIsFlipped(false);
     setShowResult(false);
     setCorrectCount(0);
     setStudySession(true);
+    setIsSessionStarted(false);
     setLastAnswerCorrect(null);
   };
 
@@ -217,19 +336,19 @@ export default function FlashcardStudyPage() {
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Số flashcard học</span>
                 <span className="text-2xl font-bold text-foreground">
-                  {cards.length}
+                  {sessionCards.length}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Câu đúng</span>
                 <span className="text-2xl font-bold text-primary">
-                  {correctCount}/{cards.length}
+                  {correctCount}/{sessionCards.length}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Tỷ lệ chính xác</span>
                 <span className="text-2xl font-bold text-accent">
-                  {Math.round((correctCount / cards.length) * 100)}%
+                  {Math.round((correctCount / Math.max(1, sessionCards.length)) * 100)}%
                 </span>
               </div>
             </div>
@@ -271,13 +390,13 @@ export default function FlashcardStudyPage() {
                   {selectedDeck.name}
                 </h1>
                 <p className="text-xs text-muted-foreground">
-                  New + Review · phím 1-4 để chọn mức nhớ
+                  Mode: {modeLabel} · phím 1-4 để chọn mức nhớ
                 </p>
               </div>
             </div>
             <div className="text-right">
               <div className="text-sm font-semibold text-foreground">
-                {currentIndex + 1}/{cards.length}
+                {sessionCards.length > 0 ? currentIndex + 1 : 0}/{sessionCards.length}
               </div>
               <div className="text-xs text-muted-foreground">Tiến độ</div>
             </div>
@@ -286,7 +405,90 @@ export default function FlashcardStudyPage() {
         </div>
       </div>
 
+      {!isSessionStarted && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6">
+          <Card className="border-border/80 bg-card/80">
+            <div className="p-4 sm:p-6 space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">SRS Learning Modes</h2>
+                <p className="text-sm text-muted-foreground">Chọn mode trước khi bắt đầu phiên học</p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {([
+                  { value: "new", label: "New" },
+                  { value: "review", label: "Review" },
+                  { value: "mixed", label: "Mixed" },
+                  { value: "cram", label: "Cram" },
+                  { value: "custom", label: "Custom" },
+                ] as Array<{ value: SrsMode; label: string }>).map((item) => (
+                  <Button
+                    key={item.value}
+                    type="button"
+                    variant={srsMode === item.value ? "default" : "outline"}
+                    onClick={() => setSrsMode(item.value)}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
+
+              {srsMode === "custom" && (
+                <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { key: "new", label: "New" },
+                      { key: "learning", label: "Learning" },
+                      { key: "review", label: "Review" },
+                      { key: "graduated", label: "Graduated" },
+                    ] as Array<{ key: Flashcard["status"]; label: string }>).map((item) => (
+                      <Button
+                        key={item.key}
+                        type="button"
+                        variant={customStatuses.includes(item.key) ? "default" : "outline"}
+                        onClick={() => toggleCustomStatus(item.key)}
+                      >
+                        {item.label}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="custom-limit" className="text-sm font-medium text-foreground">
+                      Giới hạn số thẻ
+                    </label>
+                    <input
+                      id="custom-limit"
+                      type="number"
+                      min={1}
+                      max={allCards.length}
+                      value={customCardLimit}
+                      onChange={(event) => setCustomCardLimit(Number(event.target.value) || 1)}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Số thẻ sẽ học: <span className="font-semibold text-foreground">{nextSessionCandidates.length}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Order: {srsSettings.cardOrder} · New/day: {srsSettings.newCardsPerDay} · Review max/day: {srsSettings.maxReviewCardsPerDay}
+                  </p>
+                </div>
+                <Button type="button" onClick={startSession}>
+                  Bắt đầu phiên học
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Main Study Area */}
+      {isSessionStarted && currentCard && (
       <div className="flex-1 flex items-center justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-2xl">
           {/* Flashcard */}
@@ -383,7 +585,7 @@ export default function FlashcardStudyPage() {
                 onClick={() => {
                   setIsFlipped(false);
                   setShowResult(false);
-                  toast.info("The hien tai da duoc lap lai");
+                  toast.info("Thẻ hiện tại đã được lặp lại");
                 }}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
@@ -471,6 +673,7 @@ export default function FlashcardStudyPage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

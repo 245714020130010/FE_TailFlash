@@ -4,6 +4,10 @@ export const profileMessages: LocaleDictionary = {
   vi: {
     title: "Cài đặt và Hồ sơ",
     subtitle: "Quản lý thông tin tài khoản và tùy chọn học tập",
+    providerLabel: "Phương thức đăng nhập",
+    providerPassword: "Mật khẩu",
+    providerGoogle: "Google",
+    providerFacebook: "Facebook",
     profile: "Hồ sơ",
     password: "Mật khẩu",
     notifications: "Thông báo",
@@ -40,6 +44,10 @@ export const profileMessages: LocaleDictionary = {
   en: {
     title: "Settings and Profile",
     subtitle: "Manage account information and learning preferences",
+    providerLabel: "Sign-in provider",
+    providerPassword: "Password",
+    providerGoogle: "Google",
+    providerFacebook: "Facebook",
     profile: "Profile",
     password: "Password",
     notifications: "Notifications",

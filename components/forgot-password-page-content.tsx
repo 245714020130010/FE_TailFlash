@@ -19,7 +19,7 @@ export default function ForgotPasswordPageContent() {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsSubmitting(false);
     setIsSubmitted(true);
-    toast.success("Da gui link khoi phuc trong che do demo");
+    toast.success("Đã gửi link khôi phục trong chế độ demo");
   };
 
   return (
@@ -34,7 +34,7 @@ export default function ForgotPasswordPageContent() {
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Khoi phuc mat khau
+                Khôi phục mật khẩu
               </p>
               <span className="text-xl font-bold text-foreground">TailFlash</span>
             </div>
@@ -44,17 +44,17 @@ export default function ForgotPasswordPageContent() {
             className="text-sm text-primary flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            Quay lai dang nhap
+            Quay lại đăng nhập
           </Link>
         </div>
       </div>
 
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 pb-12 sm:px-6 lg:flex-row lg:items-center">
         <Card className="w-full max-w-md border-border/70 bg-card/80 p-8 shadow-lg sm:p-10">
-          <h1 className="mb-2 text-2xl font-bold">Khoi phuc mat khau</h1>
+          <h1 className="mb-2 text-2xl font-bold">Khôi phục mật khẩu</h1>
           <p className="mb-6 text-sm text-muted-foreground">
-            Nhap email ban dung de dang ky. Chung toi se gui lien ket dat lai
-            mat khau trong vai giay.
+            Nhập email bạn dùng để đăng ký. Chúng tôi sẽ gửi liên kết đặt lại
+            mật khẩu trong vài giây.
           </p>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -77,20 +77,20 @@ export default function ForgotPasswordPageContent() {
               className="w-full bg-gradient-to-r from-primary via-accent to-secondary text-primary-foreground"
               disabled={isSubmitting || isSubmitted}
             >
-              {isSubmitting ? "Dang gui..." : "Gui link khoi phuc"}
+              {isSubmitting ? "Đang gửi..." : "Gửi link khôi phục"}
             </Button>
           </form>
 
           {isSubmitted && (
             <p className="mt-4 rounded-md border border-primary/40 bg-primary/10 p-3 text-sm text-primary">
-              Da gui email demo den {email}. Vui long kiem tra hop thu.
+              Đã gửi email demo đến {email}. Vui lòng kiểm tra hộp thư.
             </p>
           )}
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Da nho mat khau?{" "}
+            Đã nhớ mật khẩu?{" "}
             <Link href="/login" className="font-semibold text-primary">
-              Quay lai dang nhap
+              Quay lại đăng nhập
             </Link>
           </p>
         </Card>
@@ -98,27 +98,27 @@ export default function ForgotPasswordPageContent() {
         <div className="flex-1 space-y-4 rounded-2xl border bg-background/70 p-6 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-primary">
             <MailCheck className="h-4 w-4" />
-            Nhung buoc tiep theo
+            Những bước tiếp theo
           </div>
           <div className="rounded-xl border bg-card/70 p-4 text-sm">
-            <p className="font-semibold">1) Kiem tra email</p>
+            <p className="font-semibold">1) Kiểm tra email</p>
             <p className="text-muted-foreground">
-              Neu khong thay, hay kiem tra muc Spam hoac thu lai sau 30s.
+              Nếu không thấy, hãy kiểm tra mục Spam hoặc thử lại sau 30s.
             </p>
           </div>
           <div className="rounded-xl border bg-card/70 p-4 text-sm">
-            <p className="font-semibold">2) Nhap mat khau moi</p>
+            <p className="font-semibold">2) Nhập mật khẩu mới</p>
             <p className="text-muted-foreground">
-              Trong demo, thong bao thanh cong duoc hien ngay tren giao dien.
+              Trong demo, thông báo thành công được hiển thị ngay trên giao diện.
             </p>
           </div>
           <div className="rounded-xl border bg-gradient-to-r from-primary/10 via-accent/10 to-secondary/10 p-4 text-sm">
             <div className="flex items-center gap-2 font-semibold text-primary">
               <ShieldCheck className="h-4 w-4" />
-              Bao ve tai khoan
+              Bảo vệ tài khoản
             </div>
             <p className="text-muted-foreground">
-              Sau khi dat lai, dang xuat tren cac thiet bi cu de giu an toan.
+              Sau khi đặt lại, đăng xuất trên các thiết bị cũ để giữ an toàn.
             </p>
           </div>
         </div>

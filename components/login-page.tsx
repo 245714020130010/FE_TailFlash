@@ -43,7 +43,7 @@ export default function LoginPage() {
       },
     }));
     setIsLoading(false);
-    toast.success("Dang nhap demo thanh cong");
+    toast.success("Đăng nhập demo thành công");
     router.push("/dashboard");
   };
 
