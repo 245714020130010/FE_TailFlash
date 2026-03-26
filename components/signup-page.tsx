@@ -16,12 +16,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
-import { signInWithOAuthDemo, updateDemoState } from "@/lib/demo-store";
+import { useAuth } from "@/hooks/use-auth";
+import { ApiClientError } from "@/lib/api/types";
+import { signInWithOAuthDemo } from "@/lib/demo-store";
 import { toast } from "sonner";
 
 export default function SignupPage() {
   const { t } = useLanguage();
   const router = useRouter();
+  const { register } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,24 +48,24 @@ export default function SignupPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    updateDemoState((current) => ({
-      ...current,
-      profile: {
-        ...current.profile,
-        fullName,
+    try {
+      await register({
         email,
-        role,
-      },
-      session: {
-        isLoggedIn: true,
-        email,
-        provider: "password",
-      },
-    }));
-    setIsLoading(false);
-    toast.success("Tạo tài khoản demo thành công");
-    router.push("/onboarding");
+        password,
+        displayName: fullName,
+        role: role === "teacher" ? "TEACHER" : "LEARNER",
+      });
+      toast.success("Tạo tài khoản thành công");
+      router.push("/onboarding");
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        toast.error(error.message);
+      } else {
+        toast.error("Không thể tạo tài khoản");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleOAuthSignup = (provider: "google" | "facebook") => {

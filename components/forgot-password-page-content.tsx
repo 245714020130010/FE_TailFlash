@@ -6,9 +6,12 @@ import { ArrowLeft, MailCheck, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
+import { ApiClientError } from "@/lib/api/types";
 import { toast } from "sonner";
 
 export default function ForgotPasswordPageContent() {
+  const { forgotPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -16,10 +19,19 @@ export default function ForgotPasswordPageContent() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    toast.success("Đã gửi link khôi phục trong chế độ demo");
+    try {
+      await forgotPassword(email);
+      setIsSubmitted(true);
+      toast.success("Đã gửi hướng dẫn khôi phục");
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        toast.error(error.message);
+      } else {
+        toast.error("Không thể gửi yêu cầu khôi phục");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

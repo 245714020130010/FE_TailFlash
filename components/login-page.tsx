@@ -15,12 +15,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
-import { signInWithOAuthDemo, updateDemoState } from "@/lib/demo-store";
+import { useAuth } from "@/hooks/use-auth";
+import { ApiClientError } from "@/lib/api/types";
+import { signInWithOAuthDemo } from "@/lib/demo-store";
 import { toast } from "sonner";
 
 export default function LoginPage() {
   const { t } = useLanguage();
   const router = useRouter();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,22 +32,19 @@ export default function LoginPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    updateDemoState((current) => ({
-      ...current,
-      session: {
-        isLoggedIn: true,
-        email,
-        provider: "password",
-      },
-      profile: {
-        ...current.profile,
-        email,
-      },
-    }));
-    setIsLoading(false);
-    toast.success("Đăng nhập demo thành công");
-    router.push("/dashboard");
+    try {
+      await login({ email, password });
+      toast.success("Đăng nhập thành công");
+      router.push("/dashboard");
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        toast.error(error.message);
+      } else {
+        toast.error("Không thể đăng nhập");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleOAuthLogin = (provider: "google" | "facebook") => {
