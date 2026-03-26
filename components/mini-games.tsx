@@ -20,11 +20,31 @@ type GameTab =
   | "multiple"
   | "typing"
   | "builder"
+  | "memoryFlip"
   | "sprint"
   | "listening";
 type Difficulty = "easy" | "medium" | "hard";
 type LeaderboardRange = "weekly" | "monthly" | "all";
 type ListeningVoiceLocale = "en-US" | "en-GB";
+
+type MemoryPair = {
+  pairId: string;
+  word: string;
+  meaning: string;
+};
+
+type MemoryCard = {
+  id: string;
+  pairId: string;
+  label: string;
+  matched: boolean;
+};
+
+type MemoryDeckConfig = {
+  pairCount: number;
+  timeSeconds: number;
+  recommendedDifficulty: Difficulty;
+};
 
 const difficultyPointMultiplier: Record<Difficulty, number> = {
   easy: 0.85,
@@ -32,11 +52,27 @@ const difficultyPointMultiplier: Record<Difficulty, number> = {
   hard: 1.2,
 };
 
+function shuffleArray<T>(input: T[]): T[] {
+  const next = [...input];
+  for (let idx = next.length - 1; idx > 0; idx -= 1) {
+    const swapIdx = Math.floor(Math.random() * (idx + 1));
+    [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+  }
+  return next;
+}
+
 export default function MiniGames() {
   const defaultState = useMemo(() => createDefaultDemoState(), []);
   const [activeTab, setActiveTab] = useState<GameTab>("selection");
   const [typedAnswer, setTypedAnswer] = useState("");
   const [builtWord, setBuiltWord] = useState("");
+  const [memoryDeck, setMemoryDeck] = useState<MemoryCard[]>([]);
+  const [memoryOpenIds, setMemoryOpenIds] = useState<string[]>([]);
+  const [memoryMatchedPairs, setMemoryMatchedPairs] = useState(0);
+  const [memoryMoves, setMemoryMoves] = useState(0);
+  const [memoryLocked, setMemoryLocked] = useState(false);
+  const [memoryTimeLeft, setMemoryTimeLeft] = useState(0);
+  const [memoryFinished, setMemoryFinished] = useState(false);
   const [matchingAnswer, setMatchingAnswer] = useState("");
   const [multipleAnswer, setMultipleAnswer] = useState("");
   const [multipleSubmitted, setMultipleSubmitted] = useState(false);
@@ -101,6 +137,12 @@ export default function MiniGames() {
         icon: "🧩",
         title: t("games.builder"),
         duration: "10-15m",
+      },
+      {
+        id: "memoryFlip" as const,
+        icon: "🧠",
+        title: t("games.memoryFlip"),
+        duration: "6-10m",
       },
       {
         id: "sprint" as const,
@@ -214,6 +256,171 @@ export default function MiniGames() {
 
   const currentSprintQuestion = sprintQuestionPool[sprintRound] ?? sprintQuestionPool[0];
 
+  const memoryPool = useMemo<MemoryPair[]>(() => {
+    if (selectedDeck?.id === "business-english") {
+      return [
+        {
+          pairId: "negotiate",
+          word: "Negotiate",
+          meaning: locale === "vi" ? "Thương lượng để đạt thỏa thuận" : "Reach an agreement by discussion",
+        },
+        {
+          pairId: "delegate",
+          word: "Delegate",
+          meaning: locale === "vi" ? "Phân công nhiệm vụ" : "Assign tasks to others",
+        },
+        {
+          pairId: "allocate",
+          word: "Allocate",
+          meaning: locale === "vi" ? "Phân bổ nguồn lực" : "Distribute resources",
+        },
+        {
+          pairId: "deadline",
+          word: "Deadline",
+          meaning: locale === "vi" ? "Hạn chót hoàn thành" : "Final due date",
+        },
+        {
+          pairId: "stakeholder",
+          word: "Stakeholder",
+          meaning: locale === "vi" ? "Bên liên quan của dự án" : "A party involved in a project",
+        },
+        {
+          pairId: "brief",
+          word: "Brief",
+          meaning: locale === "vi" ? "Tóm tắt ngắn gọn" : "A concise summary",
+        },
+      ];
+    }
+
+    if (selectedDeck?.id === "toeic-core") {
+      return [
+        {
+          pairId: "adaptable",
+          word: "Adaptable",
+          meaning: locale === "vi" ? "Có khả năng thích nghi" : "Able to adjust quickly",
+        },
+        {
+          pairId: "accomplish",
+          word: "Accomplish",
+          meaning: locale === "vi" ? "Hoàn thành thành công" : "Complete successfully",
+        },
+        {
+          pairId: "reliable",
+          word: "Reliable",
+          meaning: locale === "vi" ? "Đáng tin cậy" : "Can be trusted",
+        },
+        {
+          pairId: "efficient",
+          word: "Efficient",
+          meaning: locale === "vi" ? "Hiệu quả, tiết kiệm" : "Working well without waste",
+        },
+        {
+          pairId: "schedule",
+          word: "Schedule",
+          meaning: locale === "vi" ? "Lịch trình công việc" : "Planned timetable",
+        },
+      ];
+    }
+
+    return [
+      {
+        pairId: "adaptable",
+        word: "Adaptable",
+        meaning: locale === "vi" ? "Có khả năng thích nghi" : "Able to adjust quickly",
+      },
+      {
+        pairId: "accomplish",
+        word: "Accomplish",
+        meaning: locale === "vi" ? "Hoàn thành thành công" : "Complete successfully",
+      },
+      {
+        pairId: "hang-out",
+        word: "Hang out",
+        meaning: locale === "vi" ? "Đi chơi, thư giãn cùng bạn" : "Spend relaxed time with friends",
+      },
+      {
+        pairId: "keep-going",
+        word: "Keep going",
+        meaning: locale === "vi" ? "Tiếp tục dù khó khăn" : "Continue despite difficulty",
+      },
+      {
+        pairId: "take-off",
+        word: "Take off",
+        meaning: locale === "vi" ? "Rời đi nhanh" : "Leave quickly",
+      },
+    ];
+  }, [locale, selectedDeck]);
+
+  const memoryDeckConfig = useMemo<MemoryDeckConfig>(() => {
+    if (selectedDeck?.id === "business-english") {
+      return {
+        pairCount: 6,
+        timeSeconds: 70,
+        recommendedDifficulty: "hard",
+      };
+    }
+
+    if (selectedDeck?.id === "toeic-core") {
+      return {
+        pairCount: 5,
+        timeSeconds: 80,
+        recommendedDifficulty: "medium",
+      };
+    }
+
+    return {
+      pairCount: 4,
+      timeSeconds: 90,
+      recommendedDifficulty: "easy",
+    };
+  }, [selectedDeck]);
+
+  const memoryPairs = useMemo(
+    () => memoryPool.slice(0, memoryDeckConfig.pairCount),
+    [memoryDeckConfig.pairCount, memoryPool],
+  );
+
+  const totalMemoryPairs = memoryPairs.length;
+  const optimalMemoryMoves = totalMemoryPairs;
+
+  const calculateMemoryFlipScore = useCallback(
+    (matchedPairs: number, totalPairs: number, moves: number) => {
+      const safeTotal = Math.max(1, totalPairs);
+      const completionRatio = matchedPairs / safeTotal;
+      const overflowMoves = Math.max(0, moves - safeTotal);
+      const score = Math.round(completionRatio * 70 + Math.max(0, 30 - overflowMoves * 6));
+      return Math.max(20, Math.min(100, score));
+    },
+    [],
+  );
+
+  const initializeMemoryFlip = useCallback(() => {
+    const cards = shuffleArray(
+      memoryPairs.flatMap((pair) => [
+        {
+          id: `${pair.pairId}-word`,
+          pairId: pair.pairId,
+          label: pair.word,
+          matched: false,
+        },
+        {
+          id: `${pair.pairId}-meaning`,
+          pairId: pair.pairId,
+          label: pair.meaning,
+          matched: false,
+        },
+      ]),
+    );
+
+    setMemoryDeck(cards);
+    setMemoryOpenIds([]);
+    setMemoryMatchedPairs(0);
+    setMemoryMoves(0);
+    setMemoryLocked(false);
+    setMemoryTimeLeft(memoryDeckConfig.timeSeconds);
+    setMemoryFinished(false);
+  }, [memoryDeckConfig.timeSeconds, memoryPairs]);
+
   const speakListeningPrompt = useCallback(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       toast.error(t("games.listeningNotSupported"));
@@ -240,7 +447,7 @@ export default function MiniGames() {
     }
   }, [challengeWord.answer, difficulty, listeningVoiceLocale, t]);
 
-  function saveGameResult(scorePercent: number, gameType: DemoGameType) {
+  const saveGameResult = useCallback((scorePercent: number, gameType: DemoGameType) => {
     const wasCompleted = Boolean(demoState.dailyChallenge.completedAt);
     const next = recordGameResult({
       scorePercent,
@@ -261,7 +468,7 @@ export default function MiniGames() {
         ),
       );
     }
-  }
+  }, [demoState.dailyChallenge.completedAt, difficulty, t]);
 
   useEffect(() => {
     if (activeTab !== "sprint" || sprintTimeLeft <= 0) {
@@ -283,6 +490,114 @@ export default function MiniGames() {
     speakListeningPrompt();
   }, [activeTab, speakListeningPrompt]);
 
+  useEffect(() => {
+    if (activeTab !== "memoryFlip" || memoryFinished || memoryTimeLeft <= 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setMemoryTimeLeft((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [activeTab, memoryFinished, memoryTimeLeft]);
+
+  useEffect(() => {
+    if (
+      activeTab !== "memoryFlip" ||
+      memoryFinished ||
+      memoryTimeLeft > 0 ||
+      totalMemoryPairs === 0
+    ) {
+      return;
+    }
+
+    const frame = window.setTimeout(() => {
+      const score = calculateMemoryFlipScore(memoryMatchedPairs, totalMemoryPairs, memoryMoves);
+      saveGameResult(score, "memoryFlip");
+      setMemoryFinished(true);
+      toast.warning(t("games.memoryFlipTimeout"));
+    }, 0);
+
+    return () => window.clearTimeout(frame);
+  }, [
+    activeTab,
+    calculateMemoryFlipScore,
+    memoryFinished,
+    memoryMatchedPairs,
+    memoryMoves,
+    memoryTimeLeft,
+    saveGameResult,
+    t,
+    totalMemoryPairs,
+  ]);
+
+  const handleMemoryCardClick = useCallback(
+    (cardId: string) => {
+      if (activeTab !== "memoryFlip" || memoryLocked) {
+        return;
+      }
+
+      const clickedCard = memoryDeck.find((card) => card.id === cardId);
+      if (!clickedCard || clickedCard.matched || memoryOpenIds.includes(cardId)) {
+        return;
+      }
+
+      if (memoryOpenIds.length === 0) {
+        setMemoryOpenIds([cardId]);
+        return;
+      }
+
+      const firstCard = memoryDeck.find((card) => card.id === memoryOpenIds[0]);
+      if (!firstCard) {
+        setMemoryOpenIds([cardId]);
+        return;
+      }
+
+      const nextOpen = [memoryOpenIds[0], cardId];
+      setMemoryOpenIds(nextOpen);
+      const nextMoves = memoryMoves + 1;
+      setMemoryMoves(nextMoves);
+
+      if (firstCard.pairId === clickedCard.pairId) {
+        setMemoryDeck((prev) =>
+          prev.map((card) =>
+            card.pairId === clickedCard.pairId ? { ...card, matched: true } : card,
+          ),
+        );
+        setMemoryOpenIds([]);
+        setMemoryMatchedPairs((prev) => {
+          const nextMatched = prev + 1;
+          if (nextMatched === totalMemoryPairs) {
+            const score = calculateMemoryFlipScore(nextMatched, totalMemoryPairs, nextMoves);
+            saveGameResult(score, "memoryFlip");
+            setMemoryFinished(true);
+            toast.success(t("games.memoryFlipCompleted"));
+          }
+          return nextMatched;
+        });
+        return;
+      }
+
+      setMemoryLocked(true);
+      window.setTimeout(() => {
+        setMemoryOpenIds([]);
+        setMemoryLocked(false);
+      }, 750);
+    },
+    [
+      activeTab,
+      calculateMemoryFlipScore,
+      memoryDeck,
+      memoryLocked,
+      memoryMoves,
+      memoryOpenIds,
+      saveGameResult,
+      t,
+      totalMemoryPairs,
+    ],
+  );
+
   const resetMiniGameState = () => {
     setMatchingAnswer("");
     setMultipleAnswer("");
@@ -291,6 +606,13 @@ export default function MiniGames() {
     setTypingSubmitted(false);
     setBuiltWord("");
     setBuilderSubmitted(false);
+    setMemoryDeck([]);
+    setMemoryOpenIds([]);
+    setMemoryMatchedPairs(0);
+    setMemoryMoves(0);
+    setMemoryLocked(false);
+    setMemoryTimeLeft(0);
+    setMemoryFinished(false);
     setSprintRound(0);
     setSprintScore(0);
     setSprintTimeLeft(30);
@@ -325,6 +647,9 @@ export default function MiniGames() {
                   onClick={() => {
                     resetMiniGameState();
                     setActiveTab(game.id);
+                    if (game.id === "memoryFlip") {
+                      initializeMemoryFlip();
+                    }
                   }}
                 >
                   <CardContent className="pt-6">
@@ -707,6 +1032,92 @@ export default function MiniGames() {
                   {t("games.builderResultRecorded")}
                 </p>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === "memoryFlip" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("games.memoryFlip")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">{t("games.memoryFlipInstruction")}</p>
+              <div className="grid grid-cols-2 gap-3 rounded-md bg-muted p-3 text-sm sm:grid-cols-3">
+                <div>
+                  <p className="text-muted-foreground">{t("games.memoryTimeLeft")}</p>
+                  <p className="text-lg font-semibold">{memoryTimeLeft}s</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("games.memoryMoves")}</p>
+                  <p className="text-lg font-semibold">{memoryMoves}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("games.memoryOptimalMoves")}</p>
+                  <p className="text-lg font-semibold">{optimalMemoryMoves}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("games.memoryMatchedPairs")}</p>
+                  <p className="text-lg font-semibold">
+                    {memoryMatchedPairs}/{totalMemoryPairs}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("games.currentDeck")}</p>
+                  <p className="text-sm font-semibold">{selectedDeck?.name ?? "-"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("games.memoryDeckDifficulty")}</p>
+                  <p className="text-sm font-semibold">
+                    {t(`games.difficulty${
+                      memoryDeckConfig.recommendedDifficulty.charAt(0).toUpperCase() +
+                      memoryDeckConfig.recommendedDifficulty.slice(1)
+                    }`)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {memoryDeck.map((card) => {
+                  const isOpen = memoryOpenIds.includes(card.id) || card.matched;
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      onClick={() => handleMemoryCardClick(card.id)}
+                      disabled={card.matched || memoryLocked || memoryFinished || memoryTimeLeft === 0}
+                      className={`h-24 rounded-md border px-3 py-2 text-sm font-medium transition ${
+                        isOpen
+                          ? "border-primary/50 bg-primary/10 text-foreground"
+                          : "border-border bg-background text-muted-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      {isOpen ? card.label : "?"}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {memoryMatchedPairs === totalMemoryPairs && (
+                <p className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">
+                  {t("games.memoryFlipCompleted")}
+                </p>
+              )}
+
+              {memoryTimeLeft === 0 && memoryMatchedPairs < totalMemoryPairs && (
+                <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-foreground">
+                  {t("games.memoryFlipTimeout")}
+                </p>
+              )}
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setActiveTab("selection")}>
+                  {t("games.backToGames")}
+                </Button>
+                <Button type="button" variant="outline" onClick={initializeMemoryFlip}>
+                  {t("games.reset")}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

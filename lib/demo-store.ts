@@ -95,12 +95,25 @@ export interface DemoSrsSettings {
   cardOrder: DemoCardOrder;
 }
 
+export type DemoMiniTestQuestionType =
+  | "vocabulary"
+  | "listening"
+  | "fillBlank"
+  | "context";
+
 export interface DemoMiniTestQuestion {
   id: string;
-  prompt: string;
+  type: DemoMiniTestQuestionType;
+  promptVi: string;
+  promptEn: string;
   choices: string[];
-  answerIndex: number;
+  answerIndex: number | null;
+  answerText: string | null;
+  audioText: string | null;
   deckId: string;
+  wrongCount: number;
+  srsDueLevel: "low" | "medium" | "high";
+  lastReviewedAt: string | null;
 }
 
 export interface DemoMiniTestStats {
@@ -205,6 +218,7 @@ export type DemoGameType =
   | "multiple"
   | "typing"
   | "builder"
+  | "memoryFlip"
   | "sprint"
   | "listening";
 
@@ -299,38 +313,129 @@ const defaultProfile: DemoProfile = {
 const defaultMiniTestQuestionBank: DemoMiniTestQuestion[] = [
   {
     id: "q-1",
-    prompt: "Choose the correct meaning of 'accomplish'.",
+    type: "vocabulary",
+    promptVi: "Chọn nghĩa đúng của từ 'accomplish'.",
+    promptEn: "Choose the correct meaning of 'accomplish'.",
     choices: ["To avoid", "To complete successfully", "To delay", "To refuse"],
     answerIndex: 1,
+    answerText: null,
+    audioText: null,
     deckId: "toeic-core",
+    wrongCount: 1,
+    srsDueLevel: "medium",
+    lastReviewedAt: null,
   },
   {
     id: "q-2",
-    prompt: "Select the best synonym for 'negotiate'.",
+    type: "vocabulary",
+    promptVi: "Chọn từ đồng nghĩa gần nhất với 'negotiate'.",
+    promptEn: "Select the best synonym for 'negotiate'.",
     choices: ["Bargain", "Celebrate", "Ignore", "Combine"],
     answerIndex: 0,
+    answerText: null,
+    audioText: null,
     deckId: "business-english",
+    wrongCount: 2,
+    srsDueLevel: "high",
+    lastReviewedAt: null,
   },
   {
     id: "q-3",
-    prompt: "What does 'hang out' usually mean?",
+    type: "vocabulary",
+    promptVi: "'hang out' thường có nghĩa là gì?",
+    promptEn: "What does 'hang out' usually mean?",
     choices: ["Work overtime", "Relax with friends", "Travel abroad", "Study deeply"],
     answerIndex: 1,
+    answerText: null,
+    audioText: null,
     deckId: "daily-conversation",
+    wrongCount: 0,
+    srsDueLevel: "low",
+    lastReviewedAt: null,
   },
   {
     id: "q-4",
-    prompt: "Pick the most suitable word: 'We need to ___ a strategy.'",
+    type: "fillBlank",
+    promptVi: "Điền từ phù hợp: 'We need to ___ a strategy.'",
+    promptEn: "Fill in the blank: 'We need to ___ a strategy.'",
     choices: ["develop", "borrow", "freeze", "repair"],
     answerIndex: 0,
+    answerText: "develop",
+    audioText: null,
     deckId: "toeic-core",
+    wrongCount: 1,
+    srsDueLevel: "medium",
+    lastReviewedAt: null,
   },
   {
     id: "q-5",
-    prompt: "Which phrase means 'to continue despite difficulty'?",
+    type: "context",
+    promptVi: "Chọn cụm từ đúng theo ngữ cảnh: 'Even when the task was hard, they decided to ___. '",
+    promptEn: "Choose the phrase that fits context: 'Even when the task was hard, they decided to ___.'",
     choices: ["Give up", "Keep going", "Look down", "Set aside"],
     answerIndex: 1,
+    answerText: null,
+    audioText: null,
     deckId: "daily-conversation",
+    wrongCount: 3,
+    srsDueLevel: "high",
+    lastReviewedAt: null,
+  },
+  {
+    id: "q-6",
+    type: "listening",
+    promptVi: "Nghe cụm từ và chọn nghĩa đúng.",
+    promptEn: "Listen to the phrase and choose the correct meaning.",
+    choices: ["Đưa ra quyết định", "Đến nơi đúng giờ", "Trì hoãn việc", "Đưa ai đó về"],
+    answerIndex: 1,
+    answerText: null,
+    audioText: "arrive on time",
+    deckId: "toeic-core",
+    wrongCount: 1,
+    srsDueLevel: "medium",
+    lastReviewedAt: null,
+  },
+  {
+    id: "q-7",
+    type: "listening",
+    promptVi: "Nghe từ và chọn nghĩa đúng.",
+    promptEn: "Listen to the word and choose the correct meaning.",
+    choices: ["Từ chối lời mời", "Thương lượng điều khoản", "Bỏ qua thông tin", "Hoãn cuộc họp"],
+    answerIndex: 1,
+    answerText: null,
+    audioText: "negotiate terms",
+    deckId: "business-english",
+    wrongCount: 2,
+    srsDueLevel: "high",
+    lastReviewedAt: null,
+  },
+  {
+    id: "q-8",
+    type: "fillBlank",
+    promptVi: "Điền từ còn thiếu: 'Please ___ the report before 5 PM.'",
+    promptEn: "Fill in the blank: 'Please ___ the report before 5 PM.'",
+    choices: ["submit", "break", "ignore", "forget"],
+    answerIndex: 0,
+    answerText: "submit",
+    audioText: null,
+    deckId: "business-english",
+    wrongCount: 0,
+    srsDueLevel: "medium",
+    lastReviewedAt: null,
+  },
+  {
+    id: "q-9",
+    type: "context",
+    promptVi: "Chọn câu trả lời phù hợp: 'My phone stopped working yesterday. It ___.'",
+    promptEn: "Choose the best completion: 'My phone stopped working yesterday. It ___. '",
+    choices: ["broke down", "picked up", "looked after", "set up"],
+    answerIndex: 0,
+    answerText: null,
+    audioText: null,
+    deckId: "daily-conversation",
+    wrongCount: 1,
+    srsDueLevel: "medium",
+    lastReviewedAt: null,
   },
 ];
 
@@ -483,6 +588,7 @@ function getGameTypeLabel(type: DemoGameType): { vi: string; en: string } {
     multiple: { vi: "Multiple Choice", en: "Multiple Choice" },
     typing: { vi: "Typing", en: "Typing" },
     builder: { vi: "Word Builder", en: "Word Builder" },
+    memoryFlip: { vi: "Memory Flip", en: "Memory Flip" },
     sprint: { vi: "Sprint", en: "Sprint" },
     listening: { vi: "Listening", en: "Listening" },
   };
@@ -845,6 +951,35 @@ function safeParse(raw: string | null): DemoState | null {
       ...defaults.contentReports[0],
       ...report,
     });
+    const normalizeMiniTestQuestion = (
+      question: Partial<DemoMiniTestQuestion> & { prompt?: string },
+    ): DemoMiniTestQuestion => {
+      const base = defaults.miniTestQuestionBank[0];
+      const promptEn = question.promptEn ?? question.prompt ?? base.promptEn;
+      const inferredType =
+        question.type ??
+        (question.audioText
+          ? "listening"
+          : promptEn.includes("___")
+            ? "fillBlank"
+            : "vocabulary");
+
+      return {
+        ...base,
+        ...question,
+        type: inferredType,
+        promptEn,
+        promptVi: question.promptVi ?? promptEn,
+        choices: question.choices && question.choices.length > 0 ? question.choices : base.choices,
+        answerIndex: typeof question.answerIndex === "number" ? question.answerIndex : null,
+        answerText: question.answerText ?? null,
+        audioText: question.audioText ?? null,
+        deckId: question.deckId ?? base.deckId,
+        wrongCount: Math.max(0, question.wrongCount ?? 0),
+        srsDueLevel: question.srsDueLevel ?? "medium",
+        lastReviewedAt: question.lastReviewedAt ?? null,
+      };
+    };
 
     return {
       ...createDefaultDemoState(),
@@ -876,7 +1011,7 @@ function safeParse(raw: string | null): DemoState | null {
       },
       miniTestQuestionBank:
         parsed.miniTestQuestionBank && parsed.miniTestQuestionBank.length > 0
-          ? parsed.miniTestQuestionBank
+          ? parsed.miniTestQuestionBank.map(normalizeMiniTestQuestion)
           : createDefaultDemoState().miniTestQuestionBank,
       studyStats: {
         ...createDefaultDemoState().studyStats,
@@ -1123,6 +1258,11 @@ export function completeMiniTest(input: {
   scorePercent: number;
   totalQuestions: number;
   correctCount: number;
+  difficulty?: "easy" | "medium" | "hard";
+  answeredQuestions?: Array<{
+    questionId: string;
+    correct: boolean;
+  }>;
 }): DemoState {
   return updateDemoState((current) => {
     const testsTaken = current.miniTestStats.testsTaken + 1;
@@ -1131,7 +1271,39 @@ export function completeMiniTest(input: {
         testsTaken,
     );
 
-    const pointsEarned = input.correctCount * 8;
+    const difficultyMultiplier: Record<"easy" | "medium" | "hard", number> = {
+      easy: 0.85,
+      medium: 1,
+      hard: 1.2,
+    };
+    const chosenDifficulty = input.difficulty ?? "medium";
+    const basePoints = input.correctCount * 8;
+    const pointsEarned =
+      basePoints === 0 ? 0 : Math.round(basePoints * difficultyMultiplier[chosenDifficulty]);
+    const answerMap = new Map(
+      (input.answeredQuestions ?? []).map((item) => [item.questionId, item.correct]),
+    );
+    const nowIso = new Date().toISOString();
+
+    const updatedQuestionBank = current.miniTestQuestionBank.map((question) => {
+      const wasCorrect = answerMap.get(question.id);
+      if (wasCorrect === undefined) {
+        return question;
+      }
+
+      const wrongCount = wasCorrect
+        ? Math.max(0, question.wrongCount - 1)
+        : question.wrongCount + 1;
+      const srsDueLevel: DemoMiniTestQuestion["srsDueLevel"] =
+        wrongCount >= 3 ? "high" : wrongCount >= 1 ? "medium" : "low";
+
+      return {
+        ...question,
+        wrongCount,
+        srsDueLevel,
+        lastReviewedAt: nowIso,
+      };
+    });
 
     return {
       ...current,
@@ -1157,10 +1329,11 @@ export function completeMiniTest(input: {
       }),
       recentActivity: appendRecentActivity(current.recentActivity, {
         type: "test",
-        titleVi: `Mini Test: ${input.correctCount}/${input.totalQuestions} câu đúng`,
-        titleEn: `Mini Test: ${input.correctCount}/${input.totalQuestions} correct answers`,
+        titleVi: `Mini Test (${chosenDifficulty}): ${input.correctCount}/${input.totalQuestions} câu đúng`,
+        titleEn: `Mini Test (${chosenDifficulty}): ${input.correctCount}/${input.totalQuestions} correct answers`,
         points: pointsEarned,
       }),
+      miniTestQuestionBank: updatedQuestionBank,
     };
   });
 }

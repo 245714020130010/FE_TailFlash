@@ -11,6 +11,7 @@ import { progressMessages } from "@/lib/i18n/modules/progress";
 import { settingsMessages } from "@/lib/i18n/modules/settings";
 import { studyMessages } from "@/lib/i18n/modules/study";
 import { teacherMessages } from "@/lib/i18n/modules/teacher";
+import { testsMessages } from "@/lib/i18n/modules/tests";
 import type { Locale, LocaleDictionary } from "@/lib/i18n/types";
 
 const modules = {
@@ -27,6 +28,7 @@ const modules = {
   settings: settingsMessages,
   study: studyMessages,
   teacher: teacherMessages,
+  tests: testsMessages,
 };
 
 function buildLocaleMessages(locale: Locale) {

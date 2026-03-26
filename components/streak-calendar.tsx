@@ -119,6 +119,7 @@ export default function StreakCalendar() {
       multiple: 0,
       typing: 0,
       builder: 0,
+      memoryFlip: 0,
       sprint: 0,
       listening: 0,
     };
@@ -134,6 +135,7 @@ export default function StreakCalendar() {
       multiple: locale === "vi" ? "Multiple Choice" : "Multiple Choice",
       typing: locale === "vi" ? "Typing" : "Typing",
       builder: locale === "vi" ? "Word Builder" : "Word Builder",
+      memoryFlip: locale === "vi" ? "Memory Flip" : "Memory Flip",
       sprint: locale === "vi" ? "Sprint" : "Sprint",
       listening: locale === "vi" ? "Listening" : "Listening",
     };
