@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { useLanguage } from "@/components/language-provider";
 import {
   completeMiniTest,
+  createDefaultDemoState,
   type DemoMiniTestQuestion,
   type DemoMiniTestQuestionType,
   readDemoState,
@@ -49,7 +50,8 @@ function getDueLevelTone(level: "high" | "medium" | "low"): string {
 
 export default function MiniTestPage() {
   const { locale, t } = useLanguage();
-  const [demoState, setDemoState] = useState(() => readDemoState());
+  const defaultDemoState = useMemo(() => createDefaultDemoState(), []);
+  const [demoState, setDemoState] = useState(defaultDemoState);
   const [isStarted, setIsStarted] = useState(false);
   const [mode, setMode] = useState<MiniTestMode>("comprehensive");
   const [sourceMode, setSourceMode] = useState<QuestionSourceMode>("all");
@@ -66,6 +68,16 @@ export default function MiniTestPage() {
   const [listeningReplayCount, setListeningReplayCount] = useState(0);
   const [currentAccent, setCurrentAccent] = useState<ListeningAccent>("en-US");
   const [nowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setDemoState(readDemoState());
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   const questions = useMemo(() => {
     const byDeck =

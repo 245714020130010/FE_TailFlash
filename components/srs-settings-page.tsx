@@ -1,22 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLanguage } from "@/components/language-provider";
-import { readDemoState, saveSrsSettings, type DemoCardOrder } from "@/lib/demo-store";
+import {
+  createDefaultDemoState,
+  readDemoState,
+  saveSrsSettings,
+  type DemoCardOrder,
+} from "@/lib/demo-store";
 
 export default function SrsSettingsPage() {
   const { locale } = useLanguage();
-  const [demoState, setDemoState] = useState(() => readDemoState());
+  const defaultDemoState = useMemo(() => createDefaultDemoState(), []);
+  const [demoState, setDemoState] = useState(defaultDemoState);
   const [newCardsPerDay, setNewCardsPerDay] = useState(demoState.srsSettings.newCardsPerDay);
   const [maxReviewCardsPerDay, setMaxReviewCardsPerDay] = useState(
     demoState.srsSettings.maxReviewCardsPerDay,
   );
   const [cardOrder, setCardOrder] = useState<DemoCardOrder>(demoState.srsSettings.cardOrder);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const hydrated = readDemoState();
+      setDemoState(hydrated);
+      setNewCardsPerDay(hydrated.srsSettings.newCardsPerDay);
+      setMaxReviewCardsPerDay(hydrated.srsSettings.maxReviewCardsPerDay);
+      setCardOrder(hydrated.srsSettings.cardOrder);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   const save = () => {
     const next = saveSrsSettings({

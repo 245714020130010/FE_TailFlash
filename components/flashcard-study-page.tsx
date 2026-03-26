@@ -79,16 +79,16 @@ const SAMPLE_FLASHCARDS: Flashcard[] = [
 
 export default function FlashcardStudyPage() {
   const { t } = useLanguage();
-  const [srsSettings] = useState(() => readDemoState().srsSettings);
-  const [selectedDeck] = useState(() => {
-    const state = readDemoState();
-    const currentDeck = state.decks.find((deck) => deck.id === state.selectedDeckId);
-    return {
-      id: currentDeck?.id ?? state.selectedDeckId,
-      name: currentDeck?.name ?? "TOEIC Core",
-      note: state.studyNotes[state.selectedDeckId] ?? "",
-    };
-  });
+  const [srsSettings, setSrsSettings] = useState(() => ({
+    newCardsPerDay: 20,
+    maxReviewCardsPerDay: 120,
+    cardOrder: "newFirst" as const,
+  }));
+  const [selectedDeck, setSelectedDeck] = useState(() => ({
+    id: "toeic-core",
+    name: "TOEIC Core",
+    note: "",
+  }));
   const [deckNote, setDeckNote] = useState(selectedDeck.note);
   const [isSessionStarted, setIsSessionStarted] = useState(false);
   const [srsMode, setSrsMode] = useState<SrsMode>("mixed");
@@ -106,6 +106,26 @@ export default function FlashcardStudyPage() {
   const [correctCount, setCorrectCount] = useState(0);
   const [studySession, setStudySession] = useState(true);
   const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const state = readDemoState();
+      const currentDeck = state.decks.find((deck) => deck.id === state.selectedDeckId);
+      const nextDeck = {
+        id: currentDeck?.id ?? state.selectedDeckId,
+        name: currentDeck?.name ?? "TOEIC Core",
+        note: state.studyNotes[state.selectedDeckId] ?? "",
+      };
+
+      setSrsSettings(state.srsSettings);
+      setSelectedDeck(nextDeck);
+      setDeckNote(nextDeck.note);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   const currentCard = sessionCards[currentIndex];
   const progress = sessionCards.length > 0 ? (currentIndex / sessionCards.length) * 100 : 0;

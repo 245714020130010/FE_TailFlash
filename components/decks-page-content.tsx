@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type ChangeEvent, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 import Link from "next/link";
@@ -38,7 +38,12 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/components/language-provider";
-import { readDemoState, updateDemoState, type DemoDeckLanguageCode } from "@/lib/demo-store";
+import {
+  createDefaultDemoState,
+  readDemoState,
+  updateDemoState,
+  type DemoDeckLanguageCode,
+} from "@/lib/demo-store";
 import { BookOpen, Clock3, Copy, Download, Pencil, Plus, Search, Sparkles, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,6 +85,7 @@ const DEFAULT_DECK_FORM_VALUES: DeckFormValues = {
 
 export default function DecksPageContent() {
   const { locale, t } = useLanguage();
+  const defaultDemoState = useMemo(() => createDefaultDemoState(), []);
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
   const [query, setQuery] = useState("");
   const [quickTab, setQuickTab] = useState<DeckQuickTab>("all");
@@ -110,12 +116,22 @@ export default function DecksPageContent() {
     };
   });
   const [expandedDeckId, setExpandedDeckId] = useState<string | null>(null);
-  const [demoState, setDemoState] = useState(() => readDemoState());
+  const [demoState, setDemoState] = useState(defaultDemoState);
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
   const [manageMode, setManageMode] = useState<DeckManageMode>("create");
   const [editingDeckId, setEditingDeckId] = useState<string | null>(null);
   const [deletingDeckId, setDeletingDeckId] = useState<string | null>(null);
   const [importingDeckId, setImportingDeckId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setDemoState(readDemoState());
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   const createDeckSchema = useMemo(
     () =>

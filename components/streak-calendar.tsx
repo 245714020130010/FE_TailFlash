@@ -1,17 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
-import { getDemoLevelFromXp, readDemoState } from "@/lib/demo-store";
+import { createDefaultDemoState, getDemoLevelFromXp, readDemoState } from "@/lib/demo-store";
 
 export default function StreakCalendar() {
   const { locale, t } = useLanguage();
+  const defaultDemoState = useMemo(() => createDefaultDemoState(), []);
   const [monthOffset, setMonthOffset] = useState(0);
-  const [demoState] = useState(() => readDemoState());
+  const [demoState, setDemoState] = useState(defaultDemoState);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setDemoState(readDemoState());
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   const monthLabel = useMemo(() => {
     const date = new Date();

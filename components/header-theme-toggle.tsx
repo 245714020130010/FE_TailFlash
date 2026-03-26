@@ -1,18 +1,30 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/theme-provider";
 import { useLanguage } from "@/components/language-provider";
-import { getDemoLevelFromXp, readDemoState } from "@/lib/demo-store";
+import { createDefaultDemoState, getDemoLevelFromXp, readDemoState } from "@/lib/demo-store";
 import { Moon, Sun } from "lucide-react";
 
 export default function HeaderThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const { locale, t } = useLanguage();
-  const [demoState] = useState(() => readDemoState());
+  const defaultDemoState = useMemo(() => createDefaultDemoState(), []);
+  const [demoState, setDemoState] = useState(defaultDemoState);
   const isDark = resolvedTheme === "dark";
   const levelInfo = getDemoLevelFromXp(demoState.pointsLedger.total);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setDemoState(readDemoState());
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
   const levelLabel = useMemo(() => {
     const labels = {
       beginner: "Beginner",

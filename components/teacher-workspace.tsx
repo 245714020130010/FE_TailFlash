@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   createAssignment,
+  createDefaultDemoState,
   createClassroom,
   getStudentRiskScore,
   readDemoState,
@@ -70,9 +71,12 @@ export default function TeacherWorkspace({
   initialSection = "all",
 }: TeacherWorkspaceProps) {
   const { locale, t } = useLanguage();
-  const [demoState, setDemoState] = useState(() => readDemoState());
+  const defaultDemoState = useMemo(() => createDefaultDemoState(), []);
+  const [demoState, setDemoState] = useState(defaultDemoState);
   const [isHydrated, setIsHydrated] = useState(false);
-  const [selectedInsightClassId, setSelectedInsightClassId] = useState(() => readDemoState().classrooms[0]?.id ?? "");
+  const [selectedInsightClassId, setSelectedInsightClassId] = useState(
+    defaultDemoState.classrooms[0]?.id ?? "",
+  );
   const importCsvRef = useRef<HTMLInputElement | null>(null);
   const [csvPreview, setCsvPreview] = useState<CsvPreviewState | null>(null);
   const role = demoState.profile.role;

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useForm } from "react-hook-form";
 import { useWatch } from "react-hook-form";
 import { z } from "zod";
@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useLanguage } from "@/components/language-provider";
 import {
+  createDefaultDemoState,
   readDemoState,
   saveReminderSettings,
   updateNotificationSettings,
@@ -31,7 +32,8 @@ type ReminderFormInput = z.infer<typeof reminderSchema>;
 
 export default function RemindersPageContent() {
   const { locale } = useLanguage();
-  const [demoState, setDemoState] = useState(() => readDemoState());
+  const defaultDemoState = useMemo(() => createDefaultDemoState(), []);
+  const [demoState, setDemoState] = useState(defaultDemoState);
   const isHydrated = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -49,6 +51,25 @@ export default function RemindersPageContent() {
       daysOfWeek: demoState.reminder.daysOfWeek,
     },
   });
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const hydrated = readDemoState();
+      setDemoState(hydrated);
+      form.reset({
+        time: hydrated.reminder.time,
+        timezone: hydrated.reminder.timezone,
+        dailyReminder: hydrated.notifications.dailyReminder,
+        weeklyReport: hydrated.notifications.weeklyReport,
+        streakWarning: hydrated.notifications.streakWarning,
+        daysOfWeek: hydrated.reminder.daysOfWeek,
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [form]);
 
   const timezoneOptions = useMemo(
     () => [

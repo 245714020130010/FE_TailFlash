@@ -220,7 +220,8 @@ export type DemoGameType =
   | "builder"
   | "memoryFlip"
   | "sprint"
-  | "listening";
+  | "listening"
+  | "speedSpelling";
 
 export interface DemoActivityItem {
   id: string;
@@ -591,6 +592,7 @@ function getGameTypeLabel(type: DemoGameType): { vi: string; en: string } {
     memoryFlip: { vi: "Memory Flip", en: "Memory Flip" },
     sprint: { vi: "Sprint", en: "Sprint" },
     listening: { vi: "Listening", en: "Listening" },
+    speedSpelling: { vi: "Speed Spelling", en: "Speed Spelling" },
   };
 
   return labels[type];

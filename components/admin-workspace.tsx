@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   assignModeratorToReport,
   assignModeratorToReports,
+  createDefaultDemoState,
   type DemoContentReport,
   readDemoState,
   resolveContentReport,
@@ -54,7 +55,8 @@ export default function AdminWorkspace({
   initialSection = "all",
 }: AdminWorkspaceProps) {
   const { locale, t } = useLanguage();
-  const [demoState, setDemoState] = useState(() => readDemoState());
+  const defaultDemoState = useMemo(() => createDefaultDemoState(), []);
+  const [demoState, setDemoState] = useState(defaultDemoState);
   const [isHydrated, setIsHydrated] = useState(false);
   const [reportStatusFilter, setReportStatusFilter] = useState("all");
   const [reportSeverityFilter, setReportSeverityFilter] = useState("all");

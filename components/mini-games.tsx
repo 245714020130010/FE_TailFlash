@@ -1,11 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
+import {
+  Award,
+  Brain,
+  Crosshair,
+  Flame,
+  Gamepad2,
+  Headphones,
+  Keyboard,
+  Layers3,
+  Sparkles,
+  Swords,
+  Timer,
+  Trophy,
+} from "lucide-react";
 import {
   createDefaultDemoState,
   type DemoGameType,
@@ -22,10 +36,20 @@ type GameTab =
   | "builder"
   | "memoryFlip"
   | "sprint"
-  | "listening";
+  | "listening"
+  | "speedSpelling";
 type Difficulty = "easy" | "medium" | "hard";
 type LeaderboardRange = "weekly" | "monthly" | "all";
 type ListeningVoiceLocale = "en-US" | "en-GB";
+
+type GameTile = {
+  id: Exclude<GameTab, "selection">;
+  icon: ReactNode;
+  title: string;
+  duration: string;
+  paceLabel: string;
+  accentClass: string;
+};
 
 type MemoryPair = {
   pairId: string;
@@ -46,6 +70,19 @@ type MemoryDeckConfig = {
   recommendedDifficulty: Difficulty;
 };
 
+type ChoiceQuestion = {
+  id: string;
+  prompt: string;
+  answer: string;
+  options: string[];
+};
+
+type TypingQuestion = {
+  id: string;
+  prompt: string;
+  answer: string;
+};
+
 const difficultyPointMultiplier: Record<Difficulty, number> = {
   easy: 0.85,
   medium: 1,
@@ -63,7 +100,10 @@ function shuffleArray<T>(input: T[]): T[] {
 
 export default function MiniGames() {
   const defaultState = useMemo(() => createDefaultDemoState(), []);
-  const [activeTab, setActiveTab] = useState<GameTab>("selection");
+  const [activeTab, setActiveTabState] = useState<GameTab>("selection");
+  const [displayedTab, setDisplayedTab] = useState<GameTab>("selection");
+  const [pendingTab, setPendingTab] = useState<GameTab | null>(null);
+  const [tabTransitionStage, setTabTransitionStage] = useState<"idle" | "exiting" | "entering">("idle");
   const [typedAnswer, setTypedAnswer] = useState("");
   const [builtWord, setBuiltWord] = useState("");
   const [memoryDeck, setMemoryDeck] = useState<MemoryCard[]>([]);
@@ -74,13 +114,27 @@ export default function MiniGames() {
   const [memoryTimeLeft, setMemoryTimeLeft] = useState(0);
   const [memoryFinished, setMemoryFinished] = useState(false);
   const [matchingAnswer, setMatchingAnswer] = useState("");
+  const [matchingRound, setMatchingRound] = useState(0);
+  const [matchingCorrect, setMatchingCorrect] = useState(0);
   const [multipleAnswer, setMultipleAnswer] = useState("");
   const [multipleSubmitted, setMultipleSubmitted] = useState(false);
+  const [multipleRound, setMultipleRound] = useState(0);
+  const [multipleCorrect, setMultipleCorrect] = useState(0);
   const [typingSubmitted, setTypingSubmitted] = useState(false);
+  const [typingRound, setTypingRound] = useState(0);
+  const [typingCorrect, setTypingCorrect] = useState(0);
   const [builderSubmitted, setBuilderSubmitted] = useState(false);
   const [sprintRound, setSprintRound] = useState(0);
   const [sprintScore, setSprintScore] = useState(0);
   const [sprintTimeLeft, setSprintTimeLeft] = useState(30);
+  const [speedRound, setSpeedRound] = useState(0);
+  const [speedInput, setSpeedInput] = useState("");
+  const [speedScore, setSpeedScore] = useState(0);
+  const [speedCombo, setSpeedCombo] = useState(0);
+  const [speedBestCombo, setSpeedBestCombo] = useState(0);
+  const [speedTimeLeft, setSpeedTimeLeft] = useState(45);
+  const [speedBonusTime, setSpeedBonusTime] = useState(0);
+  const [feedbackSignal, setFeedbackSignal] = useState<"correct" | "wrong" | null>(null);
   const [listeningAnswer, setListeningAnswer] = useState("");
   const [listeningSubmitted, setListeningSubmitted] = useState(false);
   const [listeningReplay, setListeningReplay] = useState(0);
@@ -92,7 +146,21 @@ export default function MiniGames() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [leaderboardRange, setLeaderboardRange] = useState<LeaderboardRange>("weekly");
   const [nowMs, setNowMs] = useState(0);
+  const [selectionVisible, setSelectionVisible] = useState(false);
+  const [roundPulse, setRoundPulse] = useState(false);
   const { locale, t } = useLanguage();
+
+  const setActiveTab = useCallback(
+    (nextTab: GameTab) => {
+      if (nextTab === activeTab || nextTab === pendingTab) {
+        return;
+      }
+
+      setPendingTab(nextTab);
+      setTabTransitionStage("exiting");
+    },
+    [activeTab, pendingTab],
+  );
 
   useEffect(() => {
     const hydrationFrame = window.requestAnimationFrame(() => {
@@ -112,52 +180,124 @@ export default function MiniGames() {
     };
   }, []);
 
-  const games = useMemo(
+  useEffect(() => {
+    if (activeTab !== "selection") {
+      return;
+    }
+
+    let showFrame = 0;
+    const frame = window.requestAnimationFrame(() => {
+      setSelectionVisible(false);
+      showFrame = window.requestAnimationFrame(() => {
+        setSelectionVisible(true);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(showFrame);
+    };
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (tabTransitionStage !== "exiting" || !pendingTab) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setActiveTabState(pendingTab);
+      setDisplayedTab(pendingTab);
+      setTabTransitionStage("entering");
+    }, 110);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [pendingTab, tabTransitionStage]);
+
+  useEffect(() => {
+    if (tabTransitionStage !== "entering") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setTabTransitionStage("idle");
+      setPendingTab(null);
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [tabTransitionStage]);
+
+  const games = useMemo<GameTile[]>(
     () => [
       {
-        id: "matching" as const,
-        icon: "🎯",
+        id: "matching",
+        icon: <Crosshair className="h-6 w-6" aria-hidden="true" />,
         title: t("games.matching"),
         duration: "5-10m",
+        paceLabel: locale === "vi" ? "Nhịp ổn định" : "Steady pace",
+        accentClass: "from-cyan-500/20 via-sky-500/10 to-transparent",
       },
       {
-        id: "multiple" as const,
-        icon: "✓",
+        id: "multiple",
+        icon: <Swords className="h-6 w-6" aria-hidden="true" />,
         title: t("games.multipleChoice"),
         duration: "8-12m",
+        paceLabel: locale === "vi" ? "Nhịp chiến thuật" : "Tactical pace",
+        accentClass: "from-indigo-500/20 via-blue-500/10 to-transparent",
       },
       {
-        id: "typing" as const,
-        icon: "⌨",
+        id: "typing",
+        icon: <Keyboard className="h-6 w-6" aria-hidden="true" />,
         title: t("games.typing"),
         duration: "10-15m",
+        paceLabel: locale === "vi" ? "Nhịp chính xác" : "Precision pace",
+        accentClass: "from-emerald-500/20 via-teal-500/10 to-transparent",
       },
       {
-        id: "builder" as const,
-        icon: "🧩",
+        id: "builder",
+        icon: <Layers3 className="h-6 w-6" aria-hidden="true" />,
         title: t("games.builder"),
         duration: "10-15m",
+        paceLabel: locale === "vi" ? "Nhịp tư duy" : "Logic pace",
+        accentClass: "from-orange-500/20 via-amber-500/10 to-transparent",
       },
       {
-        id: "memoryFlip" as const,
-        icon: "🧠",
+        id: "memoryFlip",
+        icon: <Brain className="h-6 w-6" aria-hidden="true" />,
         title: t("games.memoryFlip"),
         duration: "6-10m",
+        paceLabel: locale === "vi" ? "Nhịp ghi nhớ" : "Recall pace",
+        accentClass: "from-fuchsia-500/20 via-pink-500/10 to-transparent",
       },
       {
-        id: "sprint" as const,
-        icon: "⚡",
+        id: "sprint",
+        icon: <Timer className="h-6 w-6" aria-hidden="true" />,
         title: t("games.sprint"),
         duration: "3-5m",
+        paceLabel: locale === "vi" ? "Nhịp siêu nhanh" : "High speed",
+        accentClass: "from-red-500/20 via-orange-500/10 to-transparent",
       },
       {
-        id: "listening" as const,
-        icon: "🎧",
+        id: "listening",
+        icon: <Headphones className="h-6 w-6" aria-hidden="true" />,
         title: t("games.listening"),
         duration: "5-8m",
+        paceLabel: locale === "vi" ? "Nhịp phản xạ" : "Reactive pace",
+        accentClass: "from-violet-500/20 via-indigo-500/10 to-transparent",
+      },
+      {
+        id: "speedSpelling",
+        icon: <Flame className="h-6 w-6" aria-hidden="true" />,
+        title: t("games.speedSpelling"),
+        duration: "2-4m",
+        paceLabel: locale === "vi" ? "Nhịp cực đại" : "Max intensity",
+        accentClass: "from-rose-500/20 via-red-500/10 to-transparent",
       },
     ],
-    [t],
+    [locale, t],
   );
 
   const selectedDeck = useMemo(
@@ -380,6 +520,85 @@ export default function MiniGames() {
     [memoryDeckConfig.pairCount, memoryPool],
   );
 
+  const matchingQuestions = useMemo<ChoiceQuestion[]>(() => {
+    const maxQuestions = Math.min(4, memoryPool.length);
+    return shuffleArray(memoryPool)
+      .slice(0, maxQuestions)
+      .map((pair) => {
+        const distractors = shuffleArray(
+          memoryPool
+            .filter((candidate) => candidate.pairId !== pair.pairId)
+            .map((candidate) => candidate.meaning),
+        ).slice(0, 3);
+
+        return {
+          id: pair.pairId,
+          prompt: pair.word,
+          answer: pair.meaning,
+          options: shuffleArray([pair.meaning, ...distractors]),
+        };
+      });
+  }, [memoryPool]);
+
+  const multipleQuestions = useMemo<ChoiceQuestion[]>(() => {
+    const maxQuestions = Math.min(4, memoryPool.length);
+    return shuffleArray(memoryPool)
+      .slice(0, maxQuestions)
+      .map((pair) => {
+        const distractors = shuffleArray(
+          memoryPool
+            .filter((candidate) => candidate.pairId !== pair.pairId)
+            .map((candidate) => candidate.word),
+        ).slice(0, 3);
+
+        return {
+          id: pair.pairId,
+          prompt: pair.meaning,
+          answer: pair.word,
+          options: shuffleArray([pair.word, ...distractors]),
+        };
+      });
+  }, [memoryPool]);
+
+  const typingQuestions = useMemo<TypingQuestion[]>(() => {
+    const maxQuestions = Math.min(4, memoryPool.length);
+    return shuffleArray(memoryPool)
+      .slice(0, maxQuestions)
+      .map((pair) => ({
+        id: pair.pairId,
+        prompt: pair.meaning,
+        answer: pair.word,
+      }));
+  }, [memoryPool]);
+
+  const speedChallenges = useMemo<TypingQuestion[]>(() => {
+    const maxQuestions = Math.min(8, memoryPool.length * 2);
+    const loopedPool = Array.from({ length: Math.ceil(maxQuestions / memoryPool.length) })
+      .flatMap(() => shuffleArray(memoryPool))
+      .slice(0, maxQuestions);
+
+    return loopedPool.map((pair, index) => ({
+      id: `${pair.pairId}-${index}`,
+      prompt: pair.meaning,
+      answer: pair.word,
+    }));
+  }, [memoryPool]);
+
+  const currentMatchingQuestion =
+    matchingQuestions[matchingRound] ?? matchingQuestions[0] ?? null;
+  const currentMultipleQuestion =
+    multipleQuestions[multipleRound] ?? multipleQuestions[0] ?? null;
+  const currentTypingQuestion = typingQuestions[typingRound] ?? typingQuestions[0] ?? null;
+  const currentSpeedChallenge = speedChallenges[speedRound] ?? speedChallenges[0] ?? null;
+
+  const feedbackCardClass =
+    feedbackSignal === "correct"
+      ? "ring-2 ring-emerald-400/50 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
+      : feedbackSignal === "wrong"
+        ? "ring-2 ring-rose-400/50 shadow-[0_0_0_4px_rgba(244,63,94,0.12)]"
+        : "";
+  const interactiveCardClass = `border-border/70 bg-card/95 shadow-sm transition-all duration-200 hover:shadow-md ${feedbackCardClass}`;
+
   const totalMemoryPairs = memoryPairs.length;
   const optimalMemoryMoves = totalMemoryPairs;
 
@@ -447,6 +666,46 @@ export default function MiniGames() {
     }
   }, [challengeWord.answer, difficulty, listeningVoiceLocale, t]);
 
+  const playFeedbackTone = useCallback((signal: "correct" | "wrong") => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      return;
+    }
+
+    try {
+      const context = new AudioContextClass();
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = signal === "correct" ? 880 : 220;
+      gainNode.gain.setValueAtTime(0.0001, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.16);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.18);
+
+      void context.close();
+    } catch {
+      // Keep silent if audio context cannot be created.
+    }
+  }, []);
+
+  const triggerFeedback = useCallback((isCorrect: boolean) => {
+    const signal = isCorrect ? "correct" : "wrong";
+    setFeedbackSignal(signal);
+    playFeedbackTone(signal);
+    window.setTimeout(() => {
+      setFeedbackSignal(null);
+    }, 280);
+  }, [playFeedbackTone]);
+
   const saveGameResult = useCallback((scorePercent: number, gameType: DemoGameType) => {
     const wasCompleted = Boolean(demoState.dailyChallenge.completedAt);
     const next = recordGameResult({
@@ -481,6 +740,18 @@ export default function MiniGames() {
 
     return () => window.clearInterval(timer);
   }, [activeTab, sprintTimeLeft]);
+
+  useEffect(() => {
+    if (activeTab !== "speedSpelling" || speedTimeLeft <= 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setSpeedTimeLeft((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [activeTab, speedTimeLeft]);
 
   useEffect(() => {
     if (activeTab !== "listening") {
@@ -530,6 +801,55 @@ export default function MiniGames() {
     saveGameResult,
     t,
     totalMemoryPairs,
+  ]);
+
+  useEffect(() => {
+    if (activeTab !== "speedSpelling" || speedTimeLeft > 0 || speedChallenges.length === 0) {
+      return;
+    }
+
+    const frame = window.setTimeout(() => {
+      const total = Math.max(1, speedChallenges.length);
+      const maxExpectedScore = total * 20;
+      const scorePercent = Math.max(
+        0,
+        Math.min(100, Math.round((speedScore / maxExpectedScore) * 100)),
+      );
+      saveGameResult(scorePercent, "speedSpelling");
+      toast.warning(
+        `${t("games.speedTimeout")} - ${t("games.speedScoreLabel")}: ${speedScore}`,
+      );
+      setActiveTab("selection");
+    }, 0);
+
+    return () => window.clearTimeout(frame);
+  }, [activeTab, saveGameResult, setActiveTab, speedChallenges.length, speedScore, speedTimeLeft, t]);
+
+  useEffect(() => {
+    if (activeTab === "selection") {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setRoundPulse(true);
+    });
+    const timer = window.setTimeout(() => {
+      setRoundPulse(false);
+    }, 260);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [
+    activeTab,
+    matchingRound,
+    multipleRound,
+    typingRound,
+    sprintRound,
+    speedRound,
+    memoryMatchedPairs,
+    listeningReplay,
   ]);
 
   const handleMemoryCardClick = useCallback(
@@ -600,10 +920,16 @@ export default function MiniGames() {
 
   const resetMiniGameState = () => {
     setMatchingAnswer("");
+    setMatchingRound(0);
+    setMatchingCorrect(0);
     setMultipleAnswer("");
     setMultipleSubmitted(false);
+    setMultipleRound(0);
+    setMultipleCorrect(0);
     setTypedAnswer("");
     setTypingSubmitted(false);
+    setTypingRound(0);
+    setTypingCorrect(0);
     setBuiltWord("");
     setBuilderSubmitted(false);
     setMemoryDeck([]);
@@ -616,11 +942,29 @@ export default function MiniGames() {
     setSprintRound(0);
     setSprintScore(0);
     setSprintTimeLeft(30);
+    setSpeedRound(0);
+    setSpeedInput("");
+    setSpeedScore(0);
+    setSpeedCombo(0);
+    setSpeedBestCombo(0);
+    setSpeedTimeLeft(45);
+    setSpeedBonusTime(0);
+    setFeedbackSignal(null);
     setListeningAnswer("");
     setListeningSubmitted(false);
     setListeningReplay(0);
     setListeningVoiceLocale(locale === "en" ? "en-GB" : "en-US");
   };
+
+  const roundSurfaceClass = `rounded-lg border border-border/70 bg-muted/60 p-3 text-sm transition-all duration-300 ${
+    roundPulse ? "scale-[1.01] border-primary/40 shadow-[0_10px_25px_-18px_rgba(59,130,246,0.55)]" : ""
+  }`;
+  const urgentPulseClass =
+    (activeTab === "memoryFlip" && memoryTimeLeft > 0 && memoryTimeLeft <= 10) ||
+    (activeTab === "sprint" && sprintTimeLeft > 0 && sprintTimeLeft <= 6) ||
+    (activeTab === "speedSpelling" && speedTimeLeft > 0 && speedTimeLeft <= 8)
+      ? "animate-pulse text-rose-500"
+      : "";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/50">
@@ -637,13 +981,62 @@ export default function MiniGames() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        {activeTab === "selection" && (
+        <div
+          className={`transition-all duration-200 ${
+            tabTransitionStage === "exiting" ? "translate-y-1 opacity-0" : "translate-y-0 opacity-100"
+          }`}
+        >
+        {displayedTab === "selection" && (
           <>
-            <div className="grid gap-4 md:grid-cols-2">
-              {games.map((game) => (
+            <section className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-sky-500/10 via-background to-emerald-500/10 p-6 shadow-sm">
+              <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sky-400/20 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-emerald-400/20 blur-3xl" />
+              <div className="relative z-10 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-700 dark:text-sky-300">
+                    <Gamepad2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    {locale === "vi" ? "Mini game lab" : "Mini game lab"}
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    {locale === "vi"
+                      ? "Bản đồ game luyện phản xạ và ghi nhớ"
+                      : "Game map for reflex and recall"}
+                  </h2>
+                  <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+                    {locale === "vi"
+                      ? "Chọn game theo nhịp học của bạn, tích điểm theo độ khó và theo dõi tiến bộ trong cùng một màn hình."
+                      : "Pick a game by your learning pace, earn points by difficulty, and track progress in one flow."}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-border/70 bg-background/80 p-3">
+                    <p className="text-xs text-muted-foreground">{t("games.gamesPlayed")}</p>
+                    <p className="mt-1 text-xl font-semibold">{demoState.gameStats.gamesPlayed}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-background/80 p-3">
+                    <p className="text-xs text-muted-foreground">{t("games.averageScore")}</p>
+                    <p className="mt-1 text-xl font-semibold">{demoState.gameStats.averageScore}%</p>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-background/80 p-3">
+                    <p className="text-xs text-muted-foreground">{t("games.perfectScore")}</p>
+                    <p className="mt-1 text-xl font-semibold">{demoState.gameStats.perfectScore}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-background/80 p-3">
+                    <p className="text-xs text-muted-foreground">{t("games.pointsEarned")}</p>
+                    <p className="mt-1 text-xl font-semibold">{demoState.gameStats.pointsEarned}</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {games.map((game, index) => (
                 <Card
                   key={game.id}
-                  className="cursor-pointer transition hover:shadow-md"
+                  className={`group relative cursor-pointer overflow-hidden border-border/70 bg-card/90 transition-all duration-500 hover:-translate-y-1 hover:shadow-lg ${
+                    selectionVisible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+                  }`}
+                  style={{ transitionDelay: `${index * 55}ms` }}
                   onClick={() => {
                     resetMiniGameState();
                     setActiveTab(game.id);
@@ -652,15 +1045,19 @@ export default function MiniGames() {
                     }
                   }}
                 >
-                  <CardContent className="pt-6">
+                  <CardContent className="relative z-10 pt-6">
+                    <div className={`pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br ${game.accentClass}`} />
                     <div className="mb-3 flex items-center justify-between">
-                      <p className="text-3xl">{game.icon}</p>
-                      <span className="text-xs text-muted-foreground">
+                      <div className="relative rounded-xl border border-border/70 bg-background/90 p-2.5 text-primary shadow-sm">
+                        {game.icon}
+                      </div>
+                      <span className="rounded-full border border-border/70 bg-background/80 px-2 py-0.5 text-xs text-muted-foreground">
                         {game.duration}
                       </span>
                     </div>
-                    <h3 className="text-lg font-semibold">{game.title}</h3>
-                    <Button className="mt-4" variant="outline">
+                    <h3 className="text-lg font-semibold tracking-tight">{game.title}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">{game.paceLabel}</p>
+                    <Button className="mt-4 w-full transition group-hover:translate-y-0" variant="outline">
                       {t("games.play")}
                     </Button>
                   </CardContent>
@@ -668,30 +1065,33 @@ export default function MiniGames() {
               ))}
             </div>
 
-            <Card className="mt-8">
+            <Card className="mt-8 border-border/70 bg-card/90 shadow-sm">
               <CardHeader>
-                <CardTitle>{t("games.yourStats")}</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-amber-500" aria-hidden="true" />
+                  {t("games.yourStats")}
+                </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <div className="rounded-md bg-muted p-3 text-center">
+                <div className="rounded-lg border border-border/70 bg-muted/60 p-3 text-center">
                   <p className="text-2xl font-bold">{demoState.gameStats.gamesPlayed}</p>
                   <p className="text-xs text-muted-foreground">
                     {t("games.gamesPlayed")}
                   </p>
                 </div>
-                <div className="rounded-md bg-muted p-3 text-center">
+                <div className="rounded-lg border border-border/70 bg-muted/60 p-3 text-center">
                   <p className="text-2xl font-bold">{demoState.gameStats.averageScore}%</p>
                   <p className="text-xs text-muted-foreground">
                     {t("games.averageScore")}
                   </p>
                 </div>
-                <div className="rounded-md bg-muted p-3 text-center">
+                <div className="rounded-lg border border-border/70 bg-muted/60 p-3 text-center">
                   <p className="text-2xl font-bold">{demoState.gameStats.perfectScore}</p>
                   <p className="text-xs text-muted-foreground">
                     {t("games.perfectScore")}
                   </p>
                 </div>
-                <div className="rounded-md bg-muted p-3 text-center">
+                <div className="rounded-lg border border-border/70 bg-muted/60 p-3 text-center">
                   <p className="text-2xl font-bold">{demoState.gameStats.pointsEarned}</p>
                   <p className="text-xs text-muted-foreground">
                     {t("games.pointsEarned")}
@@ -701,9 +1101,12 @@ export default function MiniGames() {
             </Card>
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_1fr]">
-              <Card>
+              <Card className="border-border/70 bg-card/90 shadow-sm">
                 <CardHeader>
-                  <CardTitle>{t("games.gameSessionSetup")}</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-sky-500" aria-hidden="true" />
+                    {t("games.gameSessionSetup")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -740,15 +1143,18 @@ export default function MiniGames() {
                     </select>
                   </div>
 
-                  <div className="rounded-md border bg-muted/50 p-3 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-dashed bg-muted/50 p-3 text-sm text-muted-foreground">
                     {t("games.difficultyBonusPrefix")}: x{difficultyPointMultiplier[difficulty]}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-border/70 bg-card/90 shadow-sm">
                 <CardHeader>
-                  <CardTitle>{t("games.dailyChallenge")}</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-amber-500" aria-hidden="true" />
+                    {t("games.dailyChallenge")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <p className="font-medium">
@@ -756,7 +1162,7 @@ export default function MiniGames() {
                       ? demoState.dailyChallenge.titleVi
                       : demoState.dailyChallenge.titleEn}
                   </p>
-                  <div className="rounded-md bg-muted p-3">
+                  <div className="rounded-lg border border-border/70 bg-muted/60 p-3">
                     <p>
                       {t("games.target")}: {demoState.dailyChallenge.targetScore}%
                     </p>
@@ -767,7 +1173,7 @@ export default function MiniGames() {
                       {t("games.endsIn")}: {countdownLabel}
                     </p>
                   </div>
-                  <div className="rounded-md border border-dashed p-3">
+                  <div className="rounded-lg border border-dashed border-border/70 p-3">
                     {demoState.dailyChallenge.completedAt
                       ? t("games.completedToday")
                       : t("games.notCompletedYet")}
@@ -776,10 +1182,13 @@ export default function MiniGames() {
               </Card>
             </div>
 
-            <Card className="mt-6">
+            <Card className="mt-6 border-border/70 bg-card/90 shadow-sm">
               <CardHeader>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <CardTitle>{t("games.leaderboard")}</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-sky-500" aria-hidden="true" />
+                    {t("games.leaderboard")}
+                  </CardTitle>
                   <select
                     value={leaderboardRange}
                     onChange={(event) => setLeaderboardRange(event.target.value as LeaderboardRange)}
@@ -796,8 +1205,8 @@ export default function MiniGames() {
                 {leaderboard.map((entry, index) => (
                   <div
                     key={entry.id}
-                    className={`flex items-center justify-between rounded-md border p-3 text-sm ${
-                      entry.id === "you" ? "border-primary/40 bg-primary/5" : "border-border"
+                    className={`flex items-center justify-between rounded-lg border p-3 text-sm transition-colors ${
+                      entry.id === "you" ? "border-primary/40 bg-primary/10" : "border-border/70 bg-background/60"
                     }`}
                   >
                     <div>
@@ -819,32 +1228,52 @@ export default function MiniGames() {
           </>
         )}
 
-        {activeTab === "matching" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("games.matching")}</CardTitle>
+        {displayedTab === "matching" && (
+          <Card className={`relative overflow-hidden border-border/70 bg-card/95 ${interactiveCardClass}`}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-cyan-500/15 via-sky-500/10 to-transparent" />
+            <CardHeader className="relative z-10">
+              <CardTitle className="flex items-center gap-2">
+                <Crosshair className="h-5 w-5 text-cyan-500" aria-hidden="true" />
+                {t("games.matching")}
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <Progress value={45} className="mb-4" />
+            <CardContent className="relative z-10">
+              <Progress
+                value={
+                  matchingQuestions.length > 0
+                    ? Math.round((matchingRound / matchingQuestions.length) * 100)
+                    : 0
+                }
+                className="mb-4"
+              />
               <p className="mb-4 text-sm text-muted-foreground">
                 {t("games.matchingInstruction")}
               </p>
               <p className="mb-3 text-xs text-muted-foreground">
                 {t("games.currentDeck")}: {selectedDeck?.name ?? "-"}
               </p>
+              <div className={`${roundSurfaceClass} grid grid-cols-2 gap-3`}>
+                <p>
+                  {t("games.roundLabel")}: {Math.min(matchingRound + 1, Math.max(1, matchingQuestions.length))}/{Math.max(1, matchingQuestions.length)}
+                </p>
+                <p>
+                  {t("games.correctCount")}: {matchingCorrect}
+                </p>
+              </div>
+              <p className={`mb-3 rounded-lg border border-border/70 bg-background/80 p-3 text-sm font-medium transition-all duration-300 ${roundPulse ? "translate-x-0.5" : ""}`}>
+                {currentMatchingQuestion?.prompt}
+              </p>
               <div className="mb-4 grid gap-2 sm:grid-cols-2">
-                {[
-                  "Can adjust quickly",
-                  "Always confusing",
-                  "Impossible to change",
-                  "Very uncomfortable",
-                ].map((option) => (
+                {(currentMatchingQuestion?.options ?? []).map((option, index) => (
                   <Button
                     key={option}
                     variant={matchingAnswer === option ? "default" : "outline"}
                     type="button"
                     onClick={() => setMatchingAnswer(option)}
-                    className="justify-start"
+                    className={`justify-start border-border/70 bg-background/80 transition-all duration-300 ${
+                      roundPulse ? "translate-y-0 opacity-100" : ""
+                    }`}
+                    style={{ transitionDelay: `${index * 45}ms` }}
                   >
                     {option}
                   </Button>
@@ -853,107 +1282,189 @@ export default function MiniGames() {
               <div className="mb-4 flex gap-2">
                 <Button
                   type="button"
-                  disabled={!matchingAnswer}
+                  disabled={!matchingAnswer || !currentMatchingQuestion}
                   onClick={() => {
-                    const score = matchingAnswer === "Can adjust quickly" ? 100 : 0;
-                    saveGameResult(score, "matching");
-                    toast.success(
-                      score === 100
-                        ? t("games.answerCorrect")
-                        : t("games.answerTryAgain"),
-                    );
-                    setActiveTab("selection");
+                    if (!currentMatchingQuestion) {
+                      return;
+                    }
+
+                    const isCorrect = matchingAnswer === currentMatchingQuestion.answer;
+                    const nextCorrect = matchingCorrect + (isCorrect ? 1 : 0);
+                    const isLastQuestion = matchingRound + 1 >= matchingQuestions.length;
+
+                    triggerFeedback(isCorrect);
+                    toast.success(isCorrect ? t("games.answerCorrect") : t("games.answerTryAgain"));
+
+                    if (isLastQuestion) {
+                      const total = Math.max(1, matchingQuestions.length);
+                      const score = Math.round((nextCorrect / total) * 100);
+                      saveGameResult(score, "matching");
+                      toast.success(
+                        t("games.sessionSummary")
+                          .replace("{correct}", String(nextCorrect))
+                          .replace("{total}", String(total)),
+                      );
+                      setActiveTab("selection");
+                      return;
+                    }
+
+                    setMatchingCorrect(nextCorrect);
+                    setMatchingRound((prev) => prev + 1);
+                    setMatchingAnswer("");
                   }}
                 >
-                  {t("games.submitAnswer")}
+                  {matchingRound + 1 >= matchingQuestions.length
+                    ? t("games.submitAnswer")
+                    : t("games.nextQuestion")}
                 </Button>
               </div>
-              <Button
-                onClick={() => setActiveTab("selection")}
-                variant="outline"
-              >
+              <Button onClick={() => setActiveTab("selection")} variant="outline" className="border-border/70">
                 {t("games.backToGames")}
               </Button>
             </CardContent>
           </Card>
         )}
 
-        {activeTab === "multiple" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("games.multipleChoice")}</CardTitle>
+        {displayedTab === "multiple" && (
+          <Card className={`relative overflow-hidden border-border/70 bg-card/95 ${interactiveCardClass}`}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-indigo-500/15 via-blue-500/10 to-transparent" />
+            <CardHeader className="relative z-10">
+              <CardTitle className="flex items-center gap-2">
+                <Swords className="h-5 w-5 text-indigo-500" aria-hidden="true" />
+                {t("games.multipleChoice")}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Progress value={30} />
-              <p className="rounded-md bg-muted p-4 text-center">{promptText}</p>
-              {[
-                challengeWord.answer,
-                "Abundant",
-                "Awkward",
-                "Abstract",
-              ].map(
-                (option) => (
-                  <Button
-                    key={option}
-                    variant="outline"
-                    className="w-full justify-start"
-                    type="button"
-                    onClick={() => setMultipleAnswer(option)}
-                  >
-                    {option}
-                  </Button>
-                ),
-              )}
+            <CardContent className="relative z-10 space-y-4">
+              <Progress
+                value={
+                  multipleQuestions.length > 0
+                    ? Math.round((multipleRound / multipleQuestions.length) * 100)
+                    : 0
+                }
+              />
+              <div className={`${roundSurfaceClass} grid grid-cols-2 gap-3`}>
+                <p>
+                  {t("games.roundLabel")}: {Math.min(multipleRound + 1, Math.max(1, multipleQuestions.length))}/{Math.max(1, multipleQuestions.length)}
+                </p>
+                <p>
+                  {t("games.correctCount")}: {multipleCorrect}
+                </p>
+              </div>
+              <p className={`rounded-lg border border-border/70 bg-muted/60 p-4 text-center transition-all duration-300 ${roundPulse ? "translate-x-0.5" : ""}`}>{currentMultipleQuestion?.prompt ?? promptText}</p>
+              {(currentMultipleQuestion?.options ?? []).map((option, index) => (
+                <Button
+                  key={option}
+                  variant="outline"
+                  className="w-full justify-start border-border/70 bg-background/80"
+                  type="button"
+                  onClick={() => setMultipleAnswer(option)}
+                  style={{ transitionDelay: `${index * 45}ms` }}
+                >
+                  {option}
+                </Button>
+              ))}
               {multipleSubmitted && (
                 <p className="text-sm text-muted-foreground">
-                  {multipleAnswer === challengeWord.answer
+                  {multipleAnswer === currentMultipleQuestion?.answer
                     ? t("games.multipleRight")
-                    : `${t("games.multipleCorrectAnswerPrefix")} ${challengeWord.answer}`}
+                    : `${t("games.multipleCorrectAnswerPrefix")} ${currentMultipleQuestion?.answer ?? ""}`}
                 </p>
               )}
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   onClick={() => setActiveTab("selection")}
+                  className="border-border/70"
                 >
                   {t("games.backToGames")}
                 </Button>
                 <Button
                   type="button"
-                  disabled={!multipleAnswer}
+                  disabled={!multipleAnswer || !currentMultipleQuestion}
                   onClick={() => {
+                    if (!currentMultipleQuestion) {
+                      return;
+                    }
+
                     setMultipleSubmitted(true);
-                    const score = multipleAnswer === challengeWord.answer ? 100 : 50;
-                    saveGameResult(score, "multiple");
-                    toast.success(t("games.resultSaved"));
-                    setActiveTab("selection");
+                    const isCorrect = multipleAnswer === currentMultipleQuestion.answer;
+                    const nextCorrect = multipleCorrect + (isCorrect ? 1 : 0);
+                    const isLastQuestion = multipleRound + 1 >= multipleQuestions.length;
+
+                    triggerFeedback(isCorrect);
+
+                    if (isLastQuestion) {
+                      const total = Math.max(1, multipleQuestions.length);
+                      const score = Math.round((nextCorrect / total) * 100);
+                      saveGameResult(score, "multiple");
+                      toast.success(
+                        t("games.sessionSummary")
+                          .replace("{correct}", String(nextCorrect))
+                          .replace("{total}", String(total)),
+                      );
+                      setActiveTab("selection");
+                      return;
+                    }
+
+                    setMultipleCorrect(nextCorrect);
+                    setMultipleRound((prev) => prev + 1);
+                    setMultipleAnswer("");
+                    setMultipleSubmitted(false);
                   }}
                 >
-                  {t("games.nextQuestion")}
+                  {multipleRound + 1 >= multipleQuestions.length
+                    ? t("games.submitAnswer")
+                    : t("games.nextQuestion")}
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {activeTab === "typing" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("games.typing")}</CardTitle>
+        {displayedTab === "typing" && (
+          <Card className={`relative overflow-hidden border-border/70 bg-card/95 ${interactiveCardClass}`}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-transparent" />
+            <CardHeader className="relative z-10">
+              <CardTitle className="flex items-center gap-2">
+                <Keyboard className="h-5 w-5 text-emerald-500" aria-hidden="true" />
+                {t("games.typing")}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Progress value={60} />
-              <p className="rounded-md bg-muted p-4 text-center">{promptText}</p>
+            <CardContent className="relative z-10 space-y-4">
+              <Progress
+                value={
+                  typingQuestions.length > 0
+                    ? Math.round((typingRound / typingQuestions.length) * 100)
+                    : 0
+                }
+              />
+              <div className={`${roundSurfaceClass} grid grid-cols-2 gap-3`}>
+                <p>
+                  {t("games.roundLabel")}: {Math.min(typingRound + 1, Math.max(1, typingQuestions.length))}/{Math.max(1, typingQuestions.length)}
+                </p>
+                <p>
+                  {t("games.correctCount")}: {typingCorrect}
+                </p>
+              </div>
+              <p className={`rounded-lg border border-border/70 bg-muted/60 p-4 text-center transition-all duration-300 ${roundPulse ? "translate-x-0.5" : ""}`}>{currentTypingQuestion?.prompt ?? promptText}</p>
+              {currentTypingQuestion && (
+                <p className="text-xs text-muted-foreground">
+                  {t("games.typingHint")
+                    .replace("{letter}", currentTypingQuestion.answer.charAt(0).toUpperCase())
+                    .replace("{length}", String(currentTypingQuestion.answer.replaceAll(" ", "").length))}
+                </p>
+              )}
               <input
                 value={typedAnswer}
                 onChange={(e) => setTypedAnswer(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-4 py-2"
+                className="w-full rounded-lg border border-border/70 bg-background/90 px-4 py-2"
                 placeholder={t("games.typingPlaceholder")}
               />
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   onClick={() => setActiveTab("selection")}
+                  className="border-border/70"
                 >
                   {t("games.backToGames")}
                 </Button>
@@ -961,17 +1472,42 @@ export default function MiniGames() {
                   disabled={!typedAnswer}
                   type="button"
                   onClick={() => {
+                    if (!currentTypingQuestion) {
+                      return;
+                    }
+
                     setTypingSubmitted(true);
-                    const score =
-                      typedAnswer.trim().toLowerCase() === challengeWord.answer.toLowerCase()
-                        ? 100
-                        : 40;
-                    saveGameResult(score, "typing");
-                    toast.success(t("games.answerSubmitted"));
-                    setActiveTab("selection");
+                    const normalize = (value: string) =>
+                      value.trim().toLowerCase().replaceAll(" ", "");
+                    const isCorrect =
+                      normalize(typedAnswer) === normalize(currentTypingQuestion.answer);
+                    const nextCorrect = typingCorrect + (isCorrect ? 1 : 0);
+                    const isLastQuestion = typingRound + 1 >= typingQuestions.length;
+
+                    triggerFeedback(isCorrect);
+
+                    if (isLastQuestion) {
+                      const total = Math.max(1, typingQuestions.length);
+                      const score = Math.round((nextCorrect / total) * 100);
+                      saveGameResult(score, "typing");
+                      toast.success(
+                        t("games.sessionSummary")
+                          .replace("{correct}", String(nextCorrect))
+                          .replace("{total}", String(total)),
+                      );
+                      setActiveTab("selection");
+                      return;
+                    }
+
+                    setTypingCorrect(nextCorrect);
+                    setTypingRound((prev) => prev + 1);
+                    setTypedAnswer("");
+                    setTypingSubmitted(false);
                   }}
                 >
-                  {t("games.submitAnswer")}
+                  {typingRound + 1 >= typingQuestions.length
+                    ? t("games.submitAnswer")
+                    : t("games.nextQuestion")}
                 </Button>
               </div>
               {typingSubmitted && (
@@ -983,17 +1519,21 @@ export default function MiniGames() {
           </Card>
         )}
 
-        {activeTab === "builder" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("games.builder")}</CardTitle>
+        {displayedTab === "builder" && (
+          <Card className={`relative overflow-hidden border-border/70 bg-card/95 ${interactiveCardClass}`}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-orange-500/15 via-amber-500/10 to-transparent" />
+            <CardHeader className="relative z-10">
+              <CardTitle className="flex items-center gap-2">
+                <Layers3 className="h-5 w-5 text-orange-500" aria-hidden="true" />
+                {t("games.builder")}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="relative z-10 space-y-4">
               <Progress value={80} />
-              <p className="rounded-md bg-muted p-4 text-center">
+              <p className="rounded-lg border border-border/70 bg-muted/60 p-4 text-center">
                 {t("games.builderInstruction")}
               </p>
-              <div className="min-h-12 rounded-md border border-dashed border-border p-2">
+              <div className="min-h-12 rounded-lg border border-dashed border-border/70 bg-background/70 p-2">
                 {builtWord}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -1002,6 +1542,7 @@ export default function MiniGames() {
                     key={`${letter}-${idx}`}
                     size="sm"
                     variant="outline"
+                    className="border-border/70 bg-background/80"
                     onClick={() => setBuiltWord((prev) => prev + letter)}
                   >
                     {letter}
@@ -1009,7 +1550,7 @@ export default function MiniGames() {
                 ))}
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setBuiltWord("")}>
+                <Button variant="outline" className="border-border/70" onClick={() => setBuiltWord("")}>
                   {t("games.reset")}
                 </Button>
                 <Button
@@ -1017,7 +1558,9 @@ export default function MiniGames() {
                   onClick={() => {
                     setBuilderSubmitted(true);
                     const target = challengeWord.answer.toUpperCase().replaceAll(" ", "");
-                    const score = builtWord === target ? 100 : 35;
+                    const isCorrect = builtWord === target;
+                    const score = isCorrect ? 100 : 35;
+                    triggerFeedback(isCorrect);
                     saveGameResult(score, "builder");
                     toast.success(t("games.answerSubmitted"));
                     setActiveTab("selection");
@@ -1036,17 +1579,21 @@ export default function MiniGames() {
           </Card>
         )}
 
-        {activeTab === "memoryFlip" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("games.memoryFlip")}</CardTitle>
+        {displayedTab === "memoryFlip" && (
+          <Card className={`relative overflow-hidden border-border/70 bg-card/95 ${interactiveCardClass}`}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-fuchsia-500/15 via-pink-500/10 to-transparent" />
+            <CardHeader className="relative z-10">
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-fuchsia-500" aria-hidden="true" />
+                {t("games.memoryFlip")}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="relative z-10 space-y-4">
               <p className="text-sm text-muted-foreground">{t("games.memoryFlipInstruction")}</p>
-              <div className="grid grid-cols-2 gap-3 rounded-md bg-muted p-3 text-sm sm:grid-cols-3">
+              <div className={`${roundSurfaceClass} grid grid-cols-2 gap-3 sm:grid-cols-3`}>
                 <div>
                   <p className="text-muted-foreground">{t("games.memoryTimeLeft")}</p>
-                  <p className="text-lg font-semibold">{memoryTimeLeft}s</p>
+                  <p className={`text-lg font-semibold ${urgentPulseClass}`}>{memoryTimeLeft}s</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">{t("games.memoryMoves")}</p>
@@ -1086,10 +1633,10 @@ export default function MiniGames() {
                       type="button"
                       onClick={() => handleMemoryCardClick(card.id)}
                       disabled={card.matched || memoryLocked || memoryFinished || memoryTimeLeft === 0}
-                      className={`h-24 rounded-md border px-3 py-2 text-sm font-medium transition ${
+                      className={`h-24 rounded-lg border px-3 py-2 text-sm font-medium transition ${
                         isOpen
                           ? "border-primary/50 bg-primary/10 text-foreground"
-                          : "border-border bg-background text-muted-foreground hover:border-primary/40"
+                          : "border-border/70 bg-background/80 text-muted-foreground hover:border-primary/40"
                       }`}
                     >
                       {isOpen ? card.label : "?"}
@@ -1111,10 +1658,10 @@ export default function MiniGames() {
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setActiveTab("selection")}>
+                <Button variant="outline" className="border-border/70" onClick={() => setActiveTab("selection")}>
                   {t("games.backToGames")}
                 </Button>
-                <Button type="button" variant="outline" onClick={initializeMemoryFlip}>
+                <Button type="button" variant="outline" className="border-border/70" onClick={initializeMemoryFlip}>
                   {t("games.reset")}
                 </Button>
               </div>
@@ -1122,16 +1669,20 @@ export default function MiniGames() {
           </Card>
         )}
 
-        {activeTab === "sprint" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("games.sprintModeTitle")}</CardTitle>
+        {displayedTab === "sprint" && (
+          <Card className={`relative overflow-hidden border-border/70 bg-card/95 ${interactiveCardClass}`}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-rose-500/15 via-orange-500/10 to-transparent" />
+            <CardHeader className="relative z-10">
+              <CardTitle className="flex items-center gap-2">
+                <Timer className="h-5 w-5 text-rose-500" aria-hidden="true" />
+                {t("games.sprintModeTitle")}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 rounded-md bg-muted p-3 text-sm">
+            <CardContent className="relative z-10 space-y-4">
+              <div className={`${roundSurfaceClass} grid grid-cols-2 gap-3`}>
                 <div>
                   <p className="text-muted-foreground">{t("games.sprintTimeLeft")}</p>
-                  <p className="text-lg font-semibold">{sprintTimeLeft}s</p>
+                  <p className={`text-lg font-semibold ${urgentPulseClass}`}>{sprintTimeLeft}s</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">{t("games.sprintCorrect")}</p>
@@ -1141,7 +1692,7 @@ export default function MiniGames() {
 
               <Progress value={Math.min(100, Math.round((sprintRound / sprintQuestionPool.length) * 100))} />
 
-              <div className="rounded-md border p-4">
+              <div className={`rounded-lg border border-border/70 bg-background/80 p-4 transition-all duration-300 ${roundPulse ? "scale-[1.01]" : ""}`}>
                 <p className="text-xs text-muted-foreground">
                   {t("games.sprintQuestion")} {Math.min(sprintRound + 1, sprintQuestionPool.length)}/{sprintQuestionPool.length}
                 </p>
@@ -1153,10 +1704,11 @@ export default function MiniGames() {
                   <Button
                     key={option}
                     variant="outline"
-                    className="justify-start"
+                    className="justify-start border-border/70 bg-background/80"
                     disabled={sprintTimeLeft <= 0}
                     onClick={() => {
                       const isCorrect = option === currentSprintQuestion.answer;
+                      triggerFeedback(isCorrect);
                       if (isCorrect) {
                         setSprintScore((prev) => prev + 1);
                       }
@@ -1193,18 +1745,147 @@ export default function MiniGames() {
                 </Button>
               )}
 
-              <Button variant="outline" onClick={() => setActiveTab("selection")}>{t("games.backToGames")}</Button>
+              <Button variant="outline" className="border-border/70" onClick={() => setActiveTab("selection")}>{t("games.backToGames")}</Button>
             </CardContent>
           </Card>
         )}
 
-        {activeTab === "listening" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("games.listeningModeTitle")}</CardTitle>
+        {displayedTab === "speedSpelling" && (
+          <Card className={`relative overflow-hidden border-border/70 bg-card/95 ${interactiveCardClass}`}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-red-500/15 via-rose-500/10 to-transparent" />
+            <CardHeader className="relative z-10">
+              <CardTitle className="flex items-center gap-2">
+                <Flame className="h-5 w-5 text-red-500" aria-hidden="true" />
+                {t("games.speedModeTitle")}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-md bg-muted p-4 text-sm">
+            <CardContent className="relative z-10 space-y-4">
+              <p className="text-sm text-muted-foreground">{t("games.speedInstruction")}</p>
+
+              <div className={`${roundSurfaceClass} grid grid-cols-2 gap-3 sm:grid-cols-4`}>
+                <div>
+                  <p className="text-muted-foreground">{t("games.speedTimeLeft")}</p>
+                  <p className={`text-lg font-semibold ${urgentPulseClass}`}>{speedTimeLeft}s</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("games.speedScoreLabel")}</p>
+                  <p className="text-lg font-semibold">{speedScore}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("games.speedCombo")}</p>
+                  <p className={`text-lg font-semibold ${speedCombo >= 2 ? "animate-pulse text-emerald-500" : ""}`}>
+                    x{speedCombo}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("games.speedBonusTime")}</p>
+                  <p className="text-lg font-semibold">+{speedBonusTime}s</p>
+                </div>
+              </div>
+
+              <Progress
+                value={
+                  speedChallenges.length > 0
+                    ? Math.round((speedRound / speedChallenges.length) * 100)
+                    : 0
+                }
+              />
+
+              <div className={`rounded-lg border border-border/70 bg-background/80 p-4 transition-all duration-300 ${roundPulse ? "scale-[1.01]" : ""}`}>
+                <p className="text-xs text-muted-foreground">
+                  {t("games.roundLabel")}: {Math.min(speedRound + 1, Math.max(1, speedChallenges.length))}/{Math.max(1, speedChallenges.length)}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">{t("games.speedTargetMeaning")}</p>
+                <p className="mt-1 text-lg font-semibold">{currentSpeedChallenge?.prompt ?? "-"}</p>
+              </div>
+
+              <form
+                className="space-y-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!currentSpeedChallenge || speedInput.trim().length === 0 || speedTimeLeft <= 0) {
+                    return;
+                  }
+
+                  const normalize = (value: string) => value.trim().toLowerCase().replaceAll(" ", "");
+                  const isCorrect = normalize(speedInput) === normalize(currentSpeedChallenge.answer);
+                  triggerFeedback(isCorrect);
+
+                  if (!isCorrect) {
+                    setSpeedCombo(0);
+                    setSpeedTimeLeft((prev) => Math.max(0, prev - 2));
+                    setSpeedInput("");
+                    toast.error(t("games.answerTryAgain"));
+                    return;
+                  }
+
+                  const nextCombo = speedCombo + 1;
+                  const bonusSeconds = nextCombo % 3 === 0 ? 2 : 0;
+                  const gainedScore = 10 + nextCombo * 2;
+                  const nextScore = speedScore + gainedScore;
+
+                  setSpeedScore(nextScore);
+                  setSpeedCombo(nextCombo);
+                  setSpeedBestCombo((prev) => Math.max(prev, nextCombo));
+                  if (bonusSeconds > 0) {
+                    setSpeedBonusTime((prev) => prev + bonusSeconds);
+                    setSpeedTimeLeft((prev) => Math.min(60, prev + bonusSeconds));
+                  }
+
+                  if (speedRound + 1 >= speedChallenges.length) {
+                    const total = Math.max(1, speedChallenges.length);
+                    const maxExpectedScore = total * 20;
+                    const scorePercent = Math.max(
+                      0,
+                      Math.min(100, Math.round((nextScore / maxExpectedScore) * 100)),
+                    );
+                    saveGameResult(scorePercent, "speedSpelling");
+                    toast.success(
+                      `${t("games.speedCompleted")} - ${t("games.speedScoreLabel")}: ${nextScore}`,
+                    );
+                    setActiveTab("selection");
+                    return;
+                  }
+
+                  setSpeedRound((prev) => prev + 1);
+                  setSpeedInput("");
+                }}
+              >
+                <input
+                  value={speedInput}
+                  onChange={(event) => setSpeedInput(event.target.value)}
+                  className="w-full rounded-lg border border-border/70 bg-background/90 px-4 py-2"
+                  placeholder={t("games.speedInputPlaceholder")}
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" className="border-border/70" onClick={() => setActiveTab("selection")}>
+                    {t("games.backToGames")}
+                  </Button>
+                  <Button type="submit" disabled={speedInput.trim().length === 0 || speedTimeLeft <= 0}>
+                    {t("games.submitAnswer")}
+                  </Button>
+                </div>
+              </form>
+
+              <p className="text-xs text-muted-foreground">
+                {t("games.speedBestCombo")}: x{speedBestCombo}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {displayedTab === "listening" && (
+          <Card className={`relative overflow-hidden border-border/70 bg-card/95 ${interactiveCardClass}`}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-violet-500/15 via-indigo-500/10 to-transparent" />
+            <CardHeader className="relative z-10">
+              <CardTitle className="flex items-center gap-2">
+                <Headphones className="h-5 w-5 text-violet-500" aria-hidden="true" />
+                {t("games.listeningModeTitle")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="relative z-10 space-y-4">
+              <div className="rounded-lg border border-border/70 bg-muted/60 p-4 text-sm">
                 <p className="text-muted-foreground">{t("games.listeningKeyPhrase")}</p>
                 <p className="mt-1 font-semibold">{challengeWord.answer}</p>
               </div>
@@ -1217,7 +1898,7 @@ export default function MiniGames() {
                   id="listening-voice"
                   value={listeningVoiceLocale}
                   onChange={(event) => setListeningVoiceLocale(event.target.value as ListeningVoiceLocale)}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-10 w-full rounded-lg border border-border/70 bg-background/90 px-3 text-sm"
                 >
                   <option value="en-US">{t("games.voiceEnUs")}</option>
                   <option value="en-GB">{t("games.voiceEnGb")}</option>
@@ -1228,6 +1909,7 @@ export default function MiniGames() {
                 <Button
                   type="button"
                   variant="outline"
+                  className="border-border/70"
                   onClick={() => {
                     setListeningReplay((prev) => prev + 1);
                     speakListeningPrompt();
@@ -1235,19 +1917,20 @@ export default function MiniGames() {
                 >
                   {t("games.listeningReplay")} ({listeningReplay})
                 </Button>
-                <Button variant="outline" onClick={() => setActiveTab("selection")}>{t("games.backToGames")}</Button>
+                <Button variant="outline" className="border-border/70" onClick={() => setActiveTab("selection")}>{t("games.backToGames")}</Button>
               </div>
 
               <p className="text-sm text-muted-foreground">
                 {t("games.listeningInstruction")}
               </p>
 
-              {listeningOptions.map((option) => (
+              {listeningOptions.map((option, index) => (
                 <Button
                   key={option}
                   variant={listeningAnswer === option ? "default" : "outline"}
-                  className="w-full justify-start"
+                  className="w-full justify-start border-border/70 bg-background/80"
                   onClick={() => setListeningAnswer(option)}
+                  style={{ transitionDelay: `${index * 45}ms` }}
                 >
                   {option}
                 </Button>
@@ -1260,6 +1943,7 @@ export default function MiniGames() {
                   setListeningSubmitted(true);
                   const expectedAnswer = locale === "vi" ? challengeWord.viPrompt : challengeWord.enPrompt;
                   const isCorrect = listeningAnswer === expectedAnswer;
+                  triggerFeedback(isCorrect);
                   const score = isCorrect ? 100 : 45;
                   saveGameResult(score, "listening");
                   toast.success(t("games.listeningSubmitted"));
@@ -1277,6 +1961,7 @@ export default function MiniGames() {
             </CardContent>
           </Card>
         )}
+        </div>
       </main>
     </div>
   );
