@@ -28,21 +28,38 @@ const PROTECTED_PREFIXES = [
 ];
 
 export default function AuthSessionGuard() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthReady, isAuthenticated, currentUser } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    const isPublicPath = PUBLIC_PATHS.includes(pathname);
-    const isProtectedPath = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-
-    if (isPublicPath || !isProtectedPath || isAuthenticated) {
+    if (!isAuthReady) {
       return;
     }
 
-    const redirectTarget = encodeURIComponent(pathname);
-    router.replace(`/login?redirect=${redirectTarget}`);
-  }, [isAuthenticated, pathname, router]);
+    const isPublicPath = PUBLIC_PATHS.includes(pathname);
+    const isProtectedPath = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
+    if (isPublicPath || !isProtectedPath) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      const redirectTarget = encodeURIComponent(pathname);
+      router.replace(`/login?redirect=${redirectTarget}`);
+      return;
+    }
+
+    if (pathname.startsWith("/admin") && currentUser && currentUser.role !== "ADMIN") {
+      router.replace("/dashboard");
+      return;
+    }
+
+    if (pathname.startsWith("/teacher") && currentUser && !["TEACHER", "ADMIN"].includes(currentUser.role)) {
+      router.replace("/dashboard");
+      return;
+    }
+  }, [currentUser, isAuthReady, isAuthenticated, pathname, router]);
 
   return null;
 }

@@ -1,8 +1,10 @@
 import {
   clearAuthSession,
+  getAuthUser,
   getAccessToken,
   getRefreshToken,
   saveAuthSession,
+  saveAuthUser,
 } from "@/lib/api/auth-session";
 import { isDemoModeEnabled, requestJson } from "@/lib/api/http-client";
 import {
@@ -83,7 +85,11 @@ export const authClient = {
         displayName: nextState.profile.fullName,
         role: nextState.profile.role.toUpperCase(),
       });
-      saveAuthSession({ accessToken: tokenData.accessToken, refreshToken: tokenData.refreshToken });
+      saveAuthSession({
+        accessToken: tokenData.accessToken,
+        refreshToken: tokenData.refreshToken,
+        user: tokenData.user,
+      });
       return tokenData;
     }
 
@@ -91,7 +97,7 @@ export const authClient = {
       method: "POST",
       body: input,
     });
-    saveAuthSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    saveAuthSession({ accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user });
     return data;
   },
 
@@ -115,7 +121,11 @@ export const authClient = {
         displayName: nextState.profile.fullName,
         role: nextState.profile.role.toUpperCase(),
       });
-      saveAuthSession({ accessToken: tokenData.accessToken, refreshToken: tokenData.refreshToken });
+      saveAuthSession({
+        accessToken: tokenData.accessToken,
+        refreshToken: tokenData.refreshToken,
+        user: tokenData.user,
+      });
       return tokenData;
     }
 
@@ -123,7 +133,7 @@ export const authClient = {
       method: "POST",
       body: input,
     });
-    saveAuthSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    saveAuthSession({ accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user });
     return data;
   },
 
@@ -140,7 +150,11 @@ export const authClient = {
         displayName: current.profile.fullName,
         role: current.profile.role.toUpperCase(),
       });
-      saveAuthSession({ accessToken: tokenData.accessToken, refreshToken: tokenData.refreshToken });
+      saveAuthSession({
+        accessToken: tokenData.accessToken,
+        refreshToken: tokenData.refreshToken,
+        user: tokenData.user,
+      });
       return tokenData;
     }
 
@@ -148,7 +162,7 @@ export const authClient = {
       method: "POST",
       body: { refreshToken },
     });
-    saveAuthSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    saveAuthSession({ accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user });
     return data;
   },
 
@@ -165,10 +179,12 @@ export const authClient = {
     }
 
     const accessToken = getAccessToken();
-    return requestJson<AuthUser>("/api/v1/auth/me", {
+    const data = await requestJson<AuthUser>("/api/v1/auth/me", {
       method: "GET",
       accessToken,
     });
+    saveAuthUser(data);
+    return data;
   },
 
   async logout(): Promise<MessageData> {
@@ -224,5 +240,9 @@ export const authClient = {
       accessToken,
       body: input,
     });
+  },
+
+  getCurrentUser(): AuthUser | null {
+    return getAuthUser();
   },
 };

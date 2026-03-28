@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import HeaderThemeToggle from "@/components/header-theme-toggle";
 import { useLanguage } from "@/components/language-provider";
 import { useAuth } from "@/hooks/use-auth";
+import { isDemoModeEnabled } from "@/lib/api/http-client";
 import { ApiClientError } from "@/lib/api/types";
 import { signInWithOAuthDemo } from "@/lib/demo-store";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ export default function LoginPage() {
   const { t } = useLanguage();
   const router = useRouter();
   const { login } = useAuth();
+  const isDemoMode = isDemoModeEnabled();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,6 +50,11 @@ export default function LoginPage() {
   };
 
   const handleOAuthLogin = (provider: "google" | "facebook") => {
+    if (!isDemoMode) {
+      toast.error("Đăng nhập OAuth demo chỉ khả dụng khi bật demo mode.");
+      return;
+    }
+
     signInWithOAuthDemo({ provider });
     toast.success(
       provider === "google"
@@ -158,6 +165,7 @@ export default function LoginPage() {
               variant="outline"
               className="w-full"
               type="button"
+              disabled={!isDemoMode}
               onClick={() => handleOAuthLogin("google")}
             >
               Google
@@ -166,6 +174,7 @@ export default function LoginPage() {
               variant="outline"
               className="w-full"
               type="button"
+              disabled={!isDemoMode}
               onClick={() => handleOAuthLogin("facebook")}
             >
               Facebook

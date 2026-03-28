@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import AdminWorkspace from "@/components/admin-workspace";
+import AdminAuthorizationWorkspace from "@/components/admin-authorization-workspace";
 
 export const metadata: Metadata = {
   title: "Admin Reports | TailFlash",
-  description: "Man hinh bao cao noi dung chuyen biet cho admin trong demo TailFlash.",
+  description: "Màn hình báo cáo và phân quyền cho admin TailFlash.",
 };
 
 export default function AdminReportsPage() {
-  return <AdminWorkspace initialSection="reports" />;
+  return <AdminAuthorizationWorkspace initialSection="reports" />;
 }

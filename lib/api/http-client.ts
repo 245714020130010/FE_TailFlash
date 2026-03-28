@@ -37,5 +37,6 @@ export async function requestJson<T>(path: string, options: RequestOptions = {})
 }
 
 export function isDemoModeEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_DEMO_MODE !== "false";
+  const rawValue = process.env.NEXT_PUBLIC_DEMO_MODE?.trim().toLowerCase();
+  return rawValue === "true" || rawValue === "1";
 }

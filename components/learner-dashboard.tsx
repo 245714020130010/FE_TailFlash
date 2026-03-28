@@ -74,7 +74,10 @@ export default function LearnerDashboard() {
     const title = locale === "vi" ? item.titleVi : item.titleEn;
     const pointsLabel = item.points > 0 ? `+${item.points} XP` : "0 XP";
 
-    return `${title} (${pointsLabel})`;
+    return {
+      id: item.id,
+      text: `${title} (${pointsLabel})`,
+    };
   });
 
   return (
@@ -246,10 +249,10 @@ export default function LearnerDashboard() {
               <CardContent className="space-y-3 text-sm">
                 {recentActivity.map((item) => (
                   <p
-                    key={item}
+                    key={item.id}
                     className="rounded-md bg-muted p-3 text-muted-foreground"
                   >
-                    {item}
+                    {item.text}
                   </p>
                 ))}
               </CardContent>
